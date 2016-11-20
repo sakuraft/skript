@@ -1,0 +1,101 @@
+# ■ 飛行スクリプト　　　　　　　　　　　　　　 ■ #
+# ■ flying.sk　ver.0.2 　　　　　　　　　　　  ■ #
+# ■ 　　　　　 by Kasumi Juzo (sakraft server) ■ #
+
+# 概要：
+# 　プレイヤーは，ゲームモードにかかわらず，飛行することができます。
+# 　飛行には数秒ごとに一定の-が消費されます。
+# 　消費される経験値の量は，
+# 　「市街化区域」と「市街化調整区域」で異なります。
+# 　(区域の設定はOP権限者が設定できます)
+# 　
+
+# ・skQueryが必要
+# 
+#-48から-11,-110から-84
+# ■固定値
+options:
+	flight_money_urban: 10			# 市街化区域を飛行時，10秒ごとにとられる金(燃料代)
+	flight_money_local: 100			# 市街化調整区域飛行時，10秒ごとにとられる金(燃料代)
+
+
+# □飛行許可を求めるコマンド
+command /fly <boolean>:
+	description: 空を飛ぶ機能です。
+	trigger:
+		if arg-1 = true:
+			set player's fly mode to true
+			message "<cyan>[atc] <r>あなたの離陸を許可します。燃料切れによる墜落にご注意ください。"
+		else if arg-1 = false:
+			set player's fly mode to false
+			message "<cyan>[atc] <r>あなたの離陸許可を取り消します。"
+
+# □市街化区域を確認するコマンド
+command /city:
+	description: 空を飛ぶ機能です。
+	trigger:
+		message "<cyan>[Urb.Plan.Div.] <r>現在設定されている市街化区域は以下の通りです。"
+		loop {city.num::*}:
+			message " ●(%loop-index%号) %{city.label::%loop-index%}% ： チャンク ( %{city.x1::%loop-index%}% , %{city.z1::%loop-index%}% ) から ( %{city.x2::%loop-index%}% , %{city.z2::%loop-index%}% ) までの範囲。"
+		message "<cyan>[Urb.Plan.Div.] <r>以上です。"
+
+# □市街化区域を設定するコマンド
+command /cset <integer> <integer> <integer> <integer> <integer> <text="市街化区域">:
+	description: 市街化区域の設定を行います。OP権限専用コマンド。
+	permission: "sakraft.op"
+	trigger:
+		player has permission "sakraft.op"
+		set {city.num::%arg-1%} to arg-1
+		set {city.label::%arg-1%} to arg-6
+		set {city.x1::%arg-1%} to arg-2
+		set {city.z1::%arg-1%} to arg-3
+		set {city.x2::%arg-1%} to arg-4
+		set {city.z2::%arg-1%} to arg-5
+		message "<cyan>[Urb.Plan.Div.] <r>市街化区域を次のように設定しました。"
+		message " ●(%arg-1%号) %{city.label::%arg-1%}% ： チャンク ( %{city.x1::%arg-1%}% , %{city.z1::%arg-1%}% ) から ( %{city.x2::%arg-1%}% , %{city.z2::%arg-1%}% ) までの範囲。"
+
+# □市街化区域を解除するコマンド
+command /cdel <integer>:
+	description: 市街化区域の解除を行います。OP権限専用コマンド。
+	permission: "sakraft.op"
+	trigger:
+		message "<cyan>[Urb.Plan.Div.] <r>次の市街化区域を削除しました。"
+		message " ●(%arg-2%号)%{city.label::%arg-1%}%：(%{city.x1::%arg-1%}%,%{city.z1::%arg-1%}%)～(%{city.x2::%arg-1%}%,%{city.z2::%arg-1%}%)"
+		delete {city.num::%arg-1%}
+		delete {city.label::%arg-1%}
+		delete {city.x1::%arg-1%}
+		delete {city.z1::%arg-1%}
+		delete {city.x2::%arg-1%}
+		delete {city.z2::%arg-1%}
+
+
+# ■10秒ごとに燃料代をいただく
+every 10 seconds:
+	loop all players:
+		loop-player's fly mode is true
+		loop-player's gamemode is survival
+		# プレイヤーの所在チャンクを計算
+		set {_inurban} to false
+		set {_chunk.x} to floor(loop-player's x-coord / 16)
+		set {_chunk.z} to floor(loop-player's z-coord / 16)
+		loop {city.num::*}:
+			if {_chunk.x} is between {city.x1::%loop-index%} and {city.x2::%loop-index%}:
+				if {_chunk.z} is between {city.z1::%loop-index%} and {city.z2::%loop-index%}:
+					set {_inurban} to true
+		if {_inurban} = true:
+			if the loop-player's money < {@flight_money_urban}:
+				set loop-player's fly mode to false
+				message "<cyan>[atc] <red>燃料切れです。あなたの離陸許可を取り消します。" to loop-player
+			else:
+				remove {@flight_money_urban} from the loop-player's money
+		else:
+			if the loop-player's money < {@flight_money_local}:
+				set loop-player's fly mode to false
+				message "<cyan>[atc] <red>燃料切れです。あなたの離陸許可を取り消します。" to loop-player
+			else:
+				remove {@flight_money_local} from the loop-player's money
+
+
+
+
+

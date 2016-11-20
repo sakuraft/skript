@@ -1,0 +1,406 @@
+# ■ 住居表示スクリプト　　　　　　　　　　　　 ■ #
+# ■ address.sk　ver.0.2 　　　　　　　　　　　 ■ #
+# ■ 　　　　　 by Kasumi Juzo (sakraft server) ■ #
+#
+#　☆概要
+#　　・ワールド上に住所情報を設定します。
+#　　　情報は別スクリプトからも参考可能。
+#　　・"skQuery"の導入が必要。
+#
+#　☆履歴
+#　　16/11/03: version 1.0.0
+#　　　・完成。住所の設定や削除，表示など最低限の機能は備えた。
+#　　16/11/05: version 1.0.1
+#　　　・機能追加。市町村合併や分離(独立)などの機能を追加。
+#　　　・ヘルプ機能を拡充。
+#　　16/11/07: version 1.0.2
+#　　　・市町村絞り込み検索が正しく作動しない不具合を修正。
+#　　　・市町村一覧表示機能の追加。
+#　　　・一覧表示を見やすくしました。
+#　　　・現在地の住所を調べる機能をサブルーチン化。
+
+
+
+# 【コマンド】住所の設定・解除・一覧表示など。
+command /address <text=help>[ <text="">[ <text="">[ <text="">]]]:
+	description: 住所の設定・解除などを行います。
+	trigger:
+		if arg-1 is "help":
+			message "<cyan>[city]<r> 機能は以下の通りです。 (管)は管理者コマンド。"
+			message " <green>check<r>: 現在の所在地を調べる。"
+			message " <green>set<r>: 新たに住所を設定。"
+			message " <green>delete<r>: 住所設定を削除。"
+			message " <green>list<r>: 現在設定されている住所を一覧表示。"
+			message " <green>change<r>: (管)設定済みの町字を別の名前に変更。"
+			message " <green>merge<r>: (管)市町村合併・市町村名一括変更。"
+			message " <green>independent<r>: (管)自分のいる場所から指定した半径内の町字を独立。"
+			stop
+		else if arg-1 is "set":		# ▼新しい住所の設定
+			# ▽▽setのヘルプ用テキスト
+			if arg-2 is "help":
+				message "<cyan>[City] <r><yellow>/address set <市町村名> <町字名> <cyan>(街区表示)"
+				message " あなたのいる場所を中心に，新たな住所の設定を行います。"
+				message " <yellow><市町村名> <r>国王の計画にそった市町村名称を指定。"
+				message " <yellow><町字名> <r>自分が希望する町や字の名称を指定。"
+				message " <cyan>(街区表示) <r>オプション。"
+				message " <r>● (入力しない) → 一丁目～四丁目まで自動で街区を割り振る。"
+				message " <r>● sakai → 一丁～四丁まで自動で街区を割り振る堺市方式。"
+				message " <r>● aza → 街区を割り振らない字方式。"
+				stop
+			# ▽引数不足チェック
+			if arg-2 is "":
+				message "<cyan>[City] <red><b>エラー！ 市町村名がない！"
+				stop
+			if arg-3 is "":
+				message "<cyan>[City] <red><b>エラー！ 町字名がない！"
+				stop
+			# ▽重複チェック
+			set {_loc1} to location at rounded down x-coordinate of player, 0, rounded down z-coordinate of player
+			loop {address.town::*}:
+				# ①30メートル圏内に他の住所登録がないか調べる。
+				if distance between {_loc1} and {address.loc::%loop-index%} is smaller than 30:
+					message "<cyan>[City] <red><b>エラー！ 町字：%loop-index% の基準点と近すぎます。"
+					stop
+				# ②他に同じ名前の街区がないか調べる。
+				if arg-3 = loop-index:
+					message "<cyan>[City] <red><b>エラー！ 名称が別の住所と重複しています。"
+					stop
+			# ▽あたらしい住所を登録
+			set {address.city::%arg-3%} to arg-2
+			set {address.town::%arg-3%} to arg-3
+			set {address.loc::%arg-3%} to location at rounded down x-coordinate of player, 0, rounded down z-coordinate of player
+			if arg-4 = "sakai":
+				set {address.fugo::%arg-3%} to "sakai"
+				set {_f} to "堺市方式(%arg-2% %arg-3% ×丁)"
+			else if arg-4 = "aza":
+				set {address.fugo::%arg-3%} to "aza"
+				set {_f} to "字方式(%arg-2% %arg-3%)"
+			else:
+				set {address.fugo::%arg-3%} to "default"
+				set {_f} to "丁目(%arg-2% %arg-3% ×丁目)"
+			message "<cyan>[City] <r>住所を次のように設定しました。"
+			message " ● %{address.city::%arg-3%}% %{address.town::%arg-3%}% ： 基準点 %{address.loc::%arg-3%}% 街区符号 %{_f}%"
+			stop
+		else if arg-1 is "delete":		# ▼住所の削除
+			# ▽▽deleteのヘルプ用テキスト
+			if arg-2 is "help":
+				message "<cyan>[City] <r><yellow>/address delete <町字名>"
+				message " 指定した町字を消去します。悪用厳禁。"
+				message " <yellow><町字名> <r>消したい町や字の名称を指定。"
+				message " <r>● all → (管理者コマンド)町字を全消去。"
+				stop
+			# ▽引数不足チェック
+			if arg-2 is "":
+				message "<cyan>[City] <red><b>エラー！ 町字名がない！"
+				stop
+			# ▽全消去(OP権限者のみ)
+			if arg-2 is "all":
+				if player doesn't have permission "sakuraft.op":
+					message "<cyan>[City] <red><b>エラー！ 住所全消去はOP権限者のみ使用可能です。"
+					stop
+				delete {address.city::*}
+				delete {address.town::*}
+				delete {address.loc::*}
+				delete {address.fugo::*}
+				message "<cyan>[City] <r>住所設定をすべて消去しました。"
+				stop
+			# ▽存在チェック
+			if {address.town::%arg-2%} is not set:
+				message "<cyan>[City] <red><b>エラー！ そのような町字名の登録はありません。"
+				stop
+			message "<cyan>[City] <r>次の住所設定を削除しました。"
+			message " ● %{address.city::%arg-2%}% %{address.town::%arg-2%}% ： 基準点 %{address.loc::%arg-2%}%"
+			delete {address.city::%arg-2%}
+			delete {address.town::%arg-2%}
+			delete {address.loc::%arg-2%}
+			delete {address.fugo::%arg-2%}
+			stop
+		else if arg-1 is "list":		# ▼住所の一覧
+			# ▽▽listのヘルプ用テキスト
+			if arg-2 is "help":
+				message "<cyan>[City] <r><yellow>/address list <cyan>(市町村)"
+				message " 設定されている住所をリスト表示します。"
+				message " <cyan>(市町村) <r>オプション。市町村絞り込みリスト表示。"
+				message " <r>● city → 市町村一覧。"
+				stop
+			set {_n} to 0
+			# ▽市町村一覧
+			if arg-2 is "city":
+				message "<cyan>[City] <r>市町村を一覧表示します。"
+				set {_add.cities::ダミー} to "ダミー"
+				loop {address.town::*}:
+					set {_c} to {address.city::%loop-index%}
+#					message " ▼ %{_c}%"
+					set {_flag} to 0
+					loop {_add.cities::*}:
+#						message " ▽ %{_c}%"
+						if {_c} is loop-index-2:
+							set {_flag} to 1
+						if {_flag} is 0:
+							set {_add.cities::%{_c}%} to {_c}
+#							message " - %loop-index-2%"
+				delete {_add.cities::ダミー}
+				loop {_add.cities::*}:
+					message " <green>● <orange>%loop-index%"
+					add 1 to {_n}
+				message "<cyan>[City] <r>以上，全 %{_n}% 市町村。"
+				stop
+			# ▽市町村名で絞り込んだ一覧
+			if arg-2 isn't "":
+				message "<cyan>[City] <orange>%arg-2%<r> の住所を一覧表示します。"
+				loop {address.town::*}:
+					if {address.city::%loop-index%} is arg-2:
+						set {_x} to x-coordinate of {address.loc::%loop-index%}
+						set {_z} to z-coordinate of {address.loc::%loop-index%}
+						message " <green>▽ <r>%{address.town::%loop-index%}% <gray>： (%{_x}%,y,%{_z}%)"
+						add 1 to {_n}
+				message "<cyan>[City] <r>以上，全 %{_n}% 町字。"
+				stop
+			# ▽全一覧
+			else:
+				message "<cyan>[City] <r>住所を一覧表示します。"
+				set {_add.cities::ダミー} to "ダミー"
+				loop {address.town::*}:
+					set {_c} to {address.city::%loop-index%}
+#					message " ▼ %{_c}%"
+					set {_flag} to 0
+					loop {_add.cities::*}:
+#						message " ▽ %{_c}%"
+						if {_c} is loop-index-2:
+							set {_flag} to 1
+						if {_flag} is 0:
+							set {_add.cities::%{_c}%} to {_c}
+#							message " - %loop-index-2%"
+				delete {_add.cities::ダミー}
+				loop {_add.cities::*}:
+					message " <green>● <orange>%loop-index%"
+					loop {address.town::*}:
+						if {address.city::%loop-index-2%} is loop-index-1:
+							set {_x} to x-coordinate of {address.loc::%loop-index-2%}
+							set {_z} to z-coordinate of {address.loc::%loop-index-2%}
+							message " <green>▽ <r>%{address.town::%loop-index-2%}% <gray>： (%{_x}%,y,%{_z}%)"
+							add 1 to {_n}
+				message "<cyan>[City] <r>以上，全 %{_n}% 町字。"
+				stop
+		else if arg-1 is "check":		# ▼今いる場所の住所を調べる。
+			# ▽▽checkのヘルプ用テキスト
+			if arg-2 is "help":
+				message "<cyan>[City] <r><yellow>/address check"
+				message " あなたのいる場所の住所を表示します。オプションなし。"
+				stop
+			invoke "checkadd" from location at the player
+			message "<cyan>[City] <r>%{add.lv1}% %{add.lv2}% %{add.lv3}%"
+			stop
+		else if arg-1 is "change":		# ▼(管理者用)町字名の変更。
+			# ▽権限チェック
+			if player doesn't have permission "sakuraft.op":
+				message "<cyan>[City] <red><b>エラー！ 町字名の変更はOP権限者のみ使用可能です。"
+				stop
+			# ▽▽changeのヘルプ用テキスト
+			if arg-2 is "help":
+				message "<cyan>[City] <r><yellow>/address change <旧名> <新名> <cyan>(街区表示の変更)"
+				message " 町や字の名前を変更します。"
+				message " <yellow><旧名> <r>変更したい町や字を指定。"
+				message " <yellow><新名> <r>新しい町や字の名称を指定。"
+				message " <cyan>(街区表示の変更) <r>オプション。"
+				message " <r>● default → 一丁目～四丁目まで自動で街区を割り振る。"
+				message " <r>● sakai → 一丁～四丁まで自動で街区を割り振る堺市方式。"
+				message " <r>● aza → 街区を割り振らない字方式。"
+				stop
+			# ▽引数不足チェック
+			if arg-2 is "":
+				message "<cyan>[City] <red><b>エラー！ 変更元の町字名がない！"
+				stop
+			if arg-3 is "":
+				message "<cyan>[City] <red><b>エラー！ 変更先の町字名がない！"
+				stop
+			# ▽存在チェック
+			if {address.town::%arg-2%} is not set:
+				message "<cyan>[City] <red><b>エラー！ そのような町字名の登録はありません。"
+				stop
+			# ▽他に同じ名前の街区がないか調べる。
+			loop {address.town::*}:
+				if arg-3 = loop-index:
+					message "<cyan>[City] <red><b>エラー！ 名称が別の住所と重複しています。"
+					stop
+			message "<cyan>[City] <r>住所変更： %arg-2% >>>> %arg-3%"
+			# ▽データを移し替える
+			set {address.city::%arg-3%} to {address.city::%arg-2%}
+			set {address.town::%arg-3%} to arg-3
+			set {address.loc::%arg-3%} to {address.loc::%arg-2%}
+			set {address.fugo::%arg-3%} to {address.fugo::%arg-2%}
+			if arg-4 = "sakai":
+				set {address.fugo::%arg-3%} to "sakai"
+			else if arg-4 = "aza":
+				set {address.fugo::%arg-3%} to "aza"
+			else if arg-4 = "default":
+				set {address.fugo::%arg-3%} to "default"
+			# ▽変更元データを消去
+			delete {address.city::%arg-2%}
+			delete {address.town::%arg-2%}
+			delete {address.loc::%arg-2%}
+			delete {address.fugo::%arg-2%}
+			stop
+		else if arg-1 is "merge":		# ▼(管理者用)市町村合併・市町村名変更。
+			# ▽権限チェック
+			if player doesn't have permission "sakuraft.op":
+				message "<cyan>[City] <red><b>エラー！ 市町村合併はOP権限者のみ使用可能です。"
+				stop
+			# ▽▽mergeのヘルプ用テキスト
+			if arg-2 is "help":
+				message "<cyan>[City] <r><yellow>/address merge <合併元> <合併先>"
+				message " 市町村合併を行います。単純な市町村名の一括変更も可能。"
+				message " <yellow><合併元> <r>合併させたい市町村名を指定。"
+				message " <yellow><合併先> <r>合併先の市町村名を指定。"
+				stop
+			# ▽引数不足チェック
+			if arg-2 is "":
+				message "<cyan>[City] <red><b>エラー！ 合併元の市町村名がない！"
+				stop
+			if arg-3 is "":
+				message "<cyan>[City] <red><b>エラー！ 合併先の市町村名がない！"
+				stop
+			set {_m} to 0	# 合併先の合併前町字数
+			set {_a} to 0	# 今回合併することになった町字数
+			message "<cyan>[City] <r>市町村合併： %arg-2% >>>> %arg-3%"
+			loop {address.town::*}:
+				if {address.city::%loop-index%} = arg-2:
+					set {address.city::%loop-index%} to arg-3
+					add 1 to {_a}
+					message " ● %loop-index% が合併。"
+				else if {address.city::%loop-index%} = arg-3:
+					add 1 to {_m}
+			message "<cyan>[City] <r>%arg-2% の町字数： %{_a}% >>>> 0"
+			message "<cyan>[City] <r>%arg-3% の町字数： %{_m}% >>>> %{_m} + {_a}%"
+			stop
+		else if arg-1 is "independent":		# ▼(管理者用)自身のいる場所から指定した半径の範囲まで市町村独立。
+			# ▽▽changeのヘルプ用テキスト
+			if arg-2 is "help":
+				message "<cyan>[City] <r><yellow>/address independent <新名> <半径>"
+				message " あなたのいる場所を中心に，指定した半径内の町や字を独立させます。"
+				message " このコマンドを使った市町村合併も可能。"
+				message " <yellow><新名> <r>独立後の市町村名を指定。"
+				message " <r>● 既存の市町村名を指定すれば，範囲内の市町村合併も可能。"
+				message " <yellow><半径> <r>あなたの所在地から何mの範囲の町や字を独立させるか数字で指定。"
+				stop
+			# ▽権限チェック
+			if player doesn't have permission "sakuraft.op":
+				message "<cyan>[City] <red><b>エラー！ 市町村独立はOP権限者のみ使用可能です。"
+				stop
+			# ▽引数不足・不能チェック
+			if arg-2 is "":
+				message "<cyan>[City] <red><b>エラー！ 市町村の新たな名前がない！"
+				stop
+			if arg-3 is "":
+				message "<cyan>[City] <red><b>エラー！ 半径の指定がない！"
+				stop
+			set {_r} to arg-3 parsed as number
+			if {_r} isn't set:
+				message "<cyan>[City] <red><b>エラー！ 半径の指定は数字で！"
+				stop
+			set {_loc1} to location at rounded down x-coordinate of player, 0, rounded down z-coordinate of player
+			set {_m} to 0	# 独立先の独立前町字数
+			set {_i} to 0	# 今回独立することになった町字数
+			set {_a} to 0	# 独立先の独立後町字数
+			message "<cyan>[City] <r>市町村独立：ここから %arg-3% m 以内の町字 >>>> %arg-2%"
+			loop {address.town::*}:
+				if {address.city::%loop-index%} = arg-2:
+					add 1 to {_m}
+				else if distance between {_loc1} and {address.loc::%loop-index%} is smaller than {_r}:
+					message " ● %loop-index% が %{address.city::%loop-index%}% から 独立。"
+					set {address.city::%loop-index%} to arg-2
+					add 1 to {_i}
+				if {address.city::%loop-index%} = arg-2:
+					add 1 to {_a}
+			message "<cyan>[City] <r>%arg-2% の町字数： %{_m}% >>>> %{_a}%"
+			message "<cyan>[City] <r>独立した町字数： %{_i}%"
+			stop
+
+
+# 【サブルーチン】指定された地点の住所を取得。
+#　　・呼び出し：invoke "checkadd" from <位置情報>
+#　　・返り値：
+#　　　　{add.lv1} = 市町村名(ないときは"")
+#　　　　{add.lv2} = 町字名(ないときは"番外地")
+#　　　　{add.lv3} = 丁目(ないときは"")
+sub "checkadd":
+	# ①自身の所在地と，登録されているすべての町字基準点との距離を調べる。
+	set {_loc1} to parameter 1
+	set {_win.d} to 300
+	set {_win.t} to "番外地"
+	loop {address.town::*}:
+		if distance between {_loc1} and {address.loc::%loop-index%} is smaller than {_win.d}:
+			set {_win.d} to distance between {_loc1} and {address.loc::%loop-index%}
+			set {_win.t} to loop-index
+	# ②住所登録地から100メートル以上はなれている場合は，番外地として処理。
+	if {_win.t} = "番外地":
+		set {add.lv1} to ""
+		set {add.lv2} to "番外地"
+		set {add.lv3} to ""
+		stop
+	# ③街区符号設定に応じて，詳細な街区を算出。
+	# ▽共通処理
+	set {add.lv1} to {address.city::%{_win.t}%}
+	set {add.lv2} to {_win.t}
+	# ▽字
+	if {address.fugo::%{_win.t}%} = "aza":
+		set {add.lv3} to ""
+		stop
+	# ▽丁目
+	else if {address.fugo::%{_win.t}%} = "default":
+		if rounded down x-coordinate of {_loc1} > rounded down x-coordinate of {address.loc::%{_win.t}%}:
+			if rounded down z-coordinate of {_loc1} > rounded down z-coordinate of {address.loc::%{_win.t}%}:
+				set {add.lv3} to "一丁目"
+				stop
+			else:
+				set {add.lv3} to "二丁目"
+				stop
+		else:
+			if rounded down z-coordinate of {_loc1} > rounded down z-coordinate of {address.loc::%{_win.t}%}:
+				set {add.lv3} to "四丁目"
+				stop
+			else:
+				set {add.lv3} to "三丁目"
+				stop
+	else if {address.fugo::%{_win.t}%} = "sakai":
+		if rounded down x-coordinate of {_loc1} > rounded down x-coordinate of {address.loc::%{_win.t}%}:
+			if rounded down z-coordinate of {_loc1} > rounded down z-coordinate of {address.loc::%{_win.t}%}:
+				set {add.lv3} to "一丁"
+				stop
+			else:
+				set {add.lv3} to "二丁"
+				stop
+		else:
+			if rounded down z-coordinate of {_loc1} > rounded down z-coordinate of {address.loc::%{_win.t}%}:
+				set {add.lv3} to "四丁"
+				stop
+			else:
+				set {add.lv3} to "三丁"
+				stop
+	stop
+
+
+# 【イベント】住居表示看板の設置。
+on sign change:
+	# ▼1行目「address」→住所の自動入力
+	line 1 is "address"
+	invoke "checkadd" from the block
+	set {_x} to rounded down x-coordinate of the block
+	set {_z} to rounded down z-coordinate of the block
+	set line 1 to "<light blue><b>*** <blue>住居表示 <light blue><b>***"
+	# ▼2行目→市町村名の自動入力
+	set line 2 to "%{add.lv1}%"
+	# ▼3行目→町字名の自動入力
+	set line 3 to "<b>%{add.lv2}%%{add.lv3}%"
+	# ▼3行目→街区符号の自動設定。
+	set {_x} to rounded down x-coordinate of the block mod 100
+	if {_x} < 0:
+		add 100 to {_x}
+	set {_z} to rounded down z-coordinate of the block mod 100
+	if {_z} < 0:
+		add 100 to {_z}
+	if {add.lv3} is set:
+		set line 4 to "%{_x}%番%{_z}%号"
+	else:
+		set line 4 to "%{_x}%%{_z}%番地"
+	

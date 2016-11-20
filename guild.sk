@@ -1,0 +1,97 @@
+# ギルドシステム
+
+# 概要
+# ・Minecraft世界に，ギルド(特権組合)のしくみを組み入れる。
+# ・プレイヤーは，1つあるいは複数のギルドに加盟できる。
+# ・ギルド加盟者と差を付けるため，一般的な生産活動の一部は制約を受ける。
+# ・このシステムの目的は，プレイヤーごとの生産にかかるコストを差別化することで，プレイヤー間の物品売買を活性化することである。
+
+
+
+# ■固定値
+options:
+	guild_cost_total: 5	# ギルド加盟の上限。各ギルドにはコストが設定され，それを上まわる量のギルドには入れない。
+	guild_farmer_cost: 1	# 農家ギルドに加盟するためのコスト。
+	guild_farmer_karma: 1	# 農家関係の行為を行ったときにたまる業。
+
+#aliases:
+#	nored = air, rail, glass, 95:0-15, glass pane, 160:0-15
+
+
+# ■変数の初期設定
+variables:
+	{guild.%player%.cost} = 0		# プレイヤーが加入しているギルドの合計コスト。
+	{guild.%player%.karma} = 0		# プレイヤーの重ねてきた業。
+	{guild.%player%.farmer} = false		# プレイヤーが設定している列車種別ID。
+
+
+# ■ ギルドに加盟するコマンド
+command /guildjoin <text>:
+	description: ギルドに加入し，生産特権を得ます。
+	usage: /guild join <text>
+	trigger:
+		set {_g} to arg 1
+		# ▼農業ギルド(ギルドマスター:秋穣子)
+		if {_g} = "farmer":
+			# ▽もうギルドに入っているとき
+			if {guild.%player%.farmer} = true:
+				message "<aqua>[Minoriko] <red>あなた，すでに農業ギルドに入ってるわよ。"
+			# ▽ギルドに入る残りコストがたりないとき
+			else if {guild.%player%.cost} > {@guild_cost_total} - {@guild_farmer_cost}:
+				message "<aqua>[Minoriko] <red>あなた，ギルドに入れる上限を超えてるわよ。"
+				message " <silver> ギルド加盟コスト: <white>{guild.%player%.cost}<silver> pts. ／ <white>{@guild_cost_total} pts."
+				message " <silver> 農業ギルド加盟にかかるコスト: <white>{@guild_farmer_cost} pts."
+			# ▽ギルドに入る条件を満たしているとき
+			else:
+				set {guild.%player%.farmer} to true
+				add {@guild_farmer_cost} to {guild.%player%.cost}
+				message "<aqua>[Minoriko] <r>おめでとう！ 農業ギルドへの加盟が認められたわ。"
+				message " あなたが私たちの一員となったことを喜ばしく思います。"
+
+
+
+# ■ ギルドから離脱するコマンド
+command /guildleave <text>:
+	description: ギルドに加入し，生産特権を得ます。
+	usage: /guild join <text>
+	trigger:
+		set {_g} to arg 1
+		# ▼農業ギルド(ギルドマスター:秋穣子)
+		if {_g} = "farmer":
+			# ▽もうギルドに入っているとき
+			if {guild.%player%.farmer} = false:
+				message "<aqua>[Minoriko] <red>あなた，そもそも農業ギルドに入ってないじゃない。"
+			# ▽ギルドをやめる条件を満たしているとき
+			else:
+				set {guild.%player%.farmer} to false
+				remove {@guild_farmer_cost} from {guild.%player%.cost}
+				message "<aqua>[Minoriko] <r>あなたの農業ギルドからの離脱が認められたわ。"
+
+
+
+# ■ 農業ギルドに【特権】を認める／それ以外に《デメリット》を与える。
+
+# 《デメリット》小麦，メロン，ジャガイモ，にんじん，スイカ，サトウキビを植えるときに
+# 　カルマがふえる。
+On place wheat or carrot or potato or pumpkin or melon or sugar canes:
+	{guild.%player%.farmer} is false
+	the player's gamemode is survival
+	set {_k} to {@guild_farmer_karma}
+	add {_k} to {guild.%player%.karma}
+	display "<b>カルマ <red>＋ %{_k}%<r> (農業行為による)" on bossbar with {guild.%player%.karma} percent by 5 seconds for player
+#	message "<aqua>[Minoriko] <r>何か植えたわね。<red>植栽税をとるわ。"
+#	remove {@guild_farmer_tax} from the player's money
+
+# 【特権】小麦，メロン，ジャガイモ，にんじん，スイカ，サトウキビを収穫するときに
+# 　通常よりもドロップ量が3～5倍に増える。
+#On break of wheat or carrot or potato or pumpkin or melon or sugar canes:
+#	{guild.%player%.farmer} is true
+#	the player's gamemode is survival
+#	if the block = wheat:
+#		drop 3 wheat
+#		drop 2 seeds
+#	else if the block = carrot:
+#		drop 5 carrot
+
+
+

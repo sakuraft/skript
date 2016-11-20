@@ -1,0 +1,54 @@
+# 看板を殴ってコマンドを発動させるスクリプト
+
+# 履歴
+# 2016/02/21 とりあえず急造
+
+
+# □コマンド発動看板の設置
+on sign change:
+	# ▼1行目「com」→看板設置。
+	# ▼2行目　コマンド，スラッシュ込みで入力
+	# ▼3行目　説明文，灰色に変化
+	# ▼4行目　説明文，灰色に変化
+	line 1 is "com"
+	set line 1 to "<green><b>＊ <red>コマンド<black>発動 <green><b>＊"
+	set line 3 to "<dark gray>%line 3%"
+	set line 4 to "<dark gray>%line 4%"
+
+
+# □コマンド発動看板を左クリック(すると，同効果のコマンドを発動)
+on rightclick on sign:
+	line 1 is "<green><b>＊ <red>コマンド<black>発動 <green><b>＊"
+	make player execute command "%line 2%"
+
+
+# □コマンド発動看板を右クリック(すると，同効果のコマンドを発動)
+on leftclick on sign:
+	line 1 is "<green><b>＊ <red>コマンド<black>発動 <green><b>＊"
+	make player execute command "%line 2%"
+
+
+# □就職用の特別なコマンド発動看板の設置
+on sign change:
+	# ▼1行目「jobs」→看板設置。
+	# ▼2行目　職業名のみを英字で入力
+	# ▼3行目　説明文，赤色に変化
+	# ▼4行目　説明文，灰色に変化
+	line 1 is "jobs"
+	set line 1 to "<blue><b>￥ <purple>就 職 <blue><b>￥"
+	set line 3 to "<red>%line 3%"
+	set line 4 to "<dark gray>%line 4%"
+
+
+# □コマンド発動看板を右クリック(すると，職業に就く)
+on rightclick on sign:
+	line 1 is "<blue><b>￥ <purple>就 職 <blue><b>￥"
+	make player execute command "/jobs join %line 2%"
+
+
+# □コマンド発動看板を左クリック(すると，職業をやめる)
+on leftclick on sign:
+	line 1 is "<blue><b>￥ <purple>就 職 <blue><b>￥"
+	make player execute command "/jobs leave %line 2%"
+
+

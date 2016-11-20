@@ -1,0 +1,440 @@
+# 税務署スクリプト Ver 4.0
+#
+
+# 注意
+# 　このスクリプトは，コマンドを多用しているので
+# 　OP権限者は，徴税のときに毎回ログ流れが起きる場合があります。
+# 　(このスクリプトはコマンドを使う度に灰色文字のログを流してくるから)
+# 　邪魔だと思ったときは，「server.properaties」ファイルの
+# 　broadcast-console-to-opsの設定をfalseにしてください。
+
+# 概要
+# ・経済Modが導入されているサクラフトサーバーにおいて
+# 　富の集中が起こらないよう，定期的に徴税します。
+# 　通称「みんなの敵」
+# ・所得の再分配機能
+# 　① 所得税(累進性なし)によって，富裕層から多く徴税します。
+# 　② 初心者からは，一定期間徴税をしません。
+# 　③ 資金税は廃止。(エメラルド銀行の利用で脱税が横行しているため)
+# ・資源配分機能
+# 　① 公共事業を行ったプレイヤーは，国庫から資金の引き出しが可能。
+# 　② 国庫を消費することで，プレイヤー全員，一律にポーション効果を付与できる。
+# 　③ 資金税は廃止。(エメラルド銀行の利用で脱税が横行しているため)
+# ・納税額に応じて，経験値を配布することで，納税者の不満を逸らします(核爆)
+
+# 履歴
+# 2016/10/18 Version 4.0
+# ・コマンドの整理。
+# ・国庫へ寄付する制度を追加。対価として経験値が配分される。
+# ・国庫貯蓄額の増減と設定ができるしくみを追加。
+# 履歴
+# 2016/03/01 Version 3.0
+# ・利益税と資金税を廃止し，所得税を導入。
+
+
+
+# ■固定値
+options:
+	xprate: 0.02			# 1ガバス納税で，経験値がいくらもらえるかを数値で指定。
+	xpdonaterate: 0.05		# 1ガバス寄付で，経験値がいくらもらえるかを数値で指定。
+	emeraldsell: 1000		# エメラルドの売却価格。
+
+
+# ■変数の初期値
+variables:
+	{taxrate.%player%} = 0			# 所得税率の初期値
+	{cometaxrate} = 40			# 最終的な所得税率。パーセントで指定。
+	{cometaxcollect} = true			# 所得税を取るか否か。
+	{lastmoney.%player%} = 99999999		# プレイヤーごとの，前回課税直後の資金
+	{treasury} = 0				# 国庫
+	{gasaire.%player%} = 0			# ガサ入れ猶予カウント
+	{taxfree.%player%} = 0			# 免税額
+	{taxreport.%player%} = 2		# 課税時レポート。0…なし，1…ver1，2…ver2
+	{taxdebug} = false			# 課税デバッグログの表示。
+	{taxevery} = 20				# 所得チェック何回おきに，所得税を徴収するか決める。
+	{taxeverycount} = 20			# あと何回所得チェックすれば，課税できるの？
+						# 例えば，所得チェック間隔15秒で，この数値が20のとき
+						# 納税間隔は，15秒×20＝300秒＝5分となる。
+
+
+# 【管理者コマンド】諸々の設定
+command /tadm <text=help>[ <integer=0>]:
+	permission: sakuraft.op
+	description: 管理者として，国庫や税金関連の設定を行うことができます。
+	trigger:
+		set {_a1} to arg 1
+		set {_a2} to arg 2
+		if {_a1} is "help":
+			message "<lime>[treasury]<r> 設定項目は以下の通りです。"
+			message " <green>grant<r>: 国庫貯蓄額を増減します。整数で設定すること。"
+			message " <green>set<r>: 国庫貯蓄額を設定します。0以上の整数で設定すること。"
+			message " <green>rate<r>: 標準所得税率の設定。整数で設定すること。"
+			message " <green>collect<r>: 所得税を徴収するか否か。0 or 1"
+			message " <green>interval<r>: 所得税を徴収する時間の間隔。15秒×(整数) で指定。4を指定すると1分間隔。"
+			message " <green>log<r>: デバッグ用ログの表示。0 or 1"
+			exit
+		else if {_a1} is "grant":		# ▼国庫貯蓄額の増減。
+			set {_test} to {treasury} + {_a2}
+			if {_test} < 0:
+				message "<lime>[treasury]<red> 国庫貯蓄額がマイナスになるような設定をしないで下さい。"
+				exit
+			add {_a2} to {treasury}
+			message "<lime>[treasury]<r> 国庫貯蓄額を <lime>%{treasury}%<r> Gavas に設定しました。"
+			exit
+		else if {_a1} is "set":			# ▼国庫貯蓄額の設定。
+			if {_a2} < 0:
+				message "<lime>[treasury]<red> 自然数を指定して下さい。"
+				exit
+			delete {treasury}
+			wait a tick
+			set {treasury} to {_a2}
+			message "<lime>[treasury]<r> 国庫貯蓄額を <lime>%{treasury}%<r> Gavas に設定しました。"
+			exit
+		else if {_a1} is "rate":		# ▼所得税率の変更。
+			if {_a2} < 2:
+				message "<lime>[treasury]<r> 所得税 %{_a2}%％ はやり過ぎです。所得税を止めるなら collect 設定を使ってください。"
+				exit
+			set {cometaxrate} to rounded {_a2}
+			message "<lime>[treasury]<r> 所得税率を %{cometaxrate}%％ に変更しました。"
+			exit
+		else if {_a1} is "collect":		# ▼所得税を徴収するか否か。
+			if {_a2} is 0:
+				set {cometaxcollect} to false
+				message "<lime>[treasury]<r> 所得税は，徴収されない設定になりました。"
+			else if {_a2} is 1:
+				set {cometaxcollect} to true
+				message "<lime>[treasury]<r> 所得税は，徴収される設定になりました。"
+			else:
+				message "<lime>[treasury]<r> 無効な数値です。所得税徴収の有無は，0 か 1 で設定します。"
+			exit
+		else if {_a1} is "interval":		# ▼所得税徴収間隔の設定。
+			if {_a2} < 2:
+				message "<lime>[treasury]<r> 無効な数値です。所得税徴収間隔は，2 以上の整数で設定してください。"
+				exit
+			set {taxevery} to rounded {_a2}
+			message "<lime>[treasury]<r> 所得税徴収間隔を %{taxevery}%×15秒 に変更しました。"
+			exit
+		else if {_a1} is "log":			# ▼デバッグ用ログの表示設定。
+			if {_a2} is 0:
+				set {taxdebug} to false
+				message "<lime>[treasury]<r> 所得デバッグログは，表示されない設定になりました。"
+			else if {_a2} is 1:
+				set {taxdebug} to true
+				message "<lime>[treasury]<r> 所得デバッグログは，表示される設定になりました。"
+			else:
+				message "<lime>[treasury]<r> 無効な数値です。所得税デバッグログの表示は，0 か 1 で設定します。"
+			exit
+
+
+# 【コマンド】国庫の額を確認・国庫から資金を引き出す・課税時レポートの表示設定
+command /treasury <text=help>[ <integer=0>]:
+	description: 国庫や税金関連のことを行うことができます。
+	trigger:
+		set {_a1} to arg 1
+		set {_a2} to arg 2
+		if {_a1} is "help":
+			message "<lime>[treasury]<r> 機能は以下の通りです。"
+			message " <green>check<r>: 国庫の貯蓄額を確認します。"
+			message " <green>draw<r>: 国庫から資金を引き出します。自然数で設定すること。"
+			message " <green>donate<r>: 国庫へ資金を寄付し，経験値を得ます。自然数で設定すること。"
+			message " <green>report<r>: 課税時レポートの表示設定を行います。0, 1 or 2"
+			exit
+		else if {_a1} is "check":		# ▼国庫貯蓄額の確認。
+			message "<lime>[treasury]<r> 国庫は <yellow>%{treasury}%<r> Gavas あります。"
+			exit
+		else if {_a1} is "draw":		# ▼国庫から資金を引き出す。
+			if {_a2} < 1:
+				message "<lime>[treasury]<red> 自然数を指定して下さい。"
+				exit
+			else if {_a2} <= {treasury}:
+				remove {_a2} from {treasury}
+				add {_a2} to the player's money
+				add {_a2} * {cometaxrate} /100 to {taxfree.%player%}
+				broadcast "<lime>[treasury]<r> %player% は国庫から <yellow>%{_a2}%<r> Gavas 引き出した。"
+				broadcast "<lime>[treasury]<r> 国庫残額： <yellow>%{treasury}%<r> Gavas"
+			else:
+				message "<lime>[treasury]<red> 国庫残額が足りません。"
+			exit
+		else if {_a1} is "donate":		# ▼国庫へ資金を寄付。
+			if {_a2} < 1:
+				message "<lime>[treasury]<red> 自然数を指定して下さい。"
+				exit
+			else if {_a2} <= the player's money:
+				add {_a2} to {treasury}
+				remove {_a2} from the player's money
+				set {_xp} to rounded down {_a2} * {@xpdonaterate}		# 贈呈経験値の計算
+				execute console command "/xp %{_xp}% %player%"			# 経験値授与
+				message "<lime>[treasury]<r>国庫に <yellow>%{_a2}%<r> Gavas 納め，経験値 <lime>%{_xp}%<r> を得た。"
+			else:
+				message "<lime>[treasury]<red> 所持金が足りません。"
+			exit
+		else if {_a1} is "report":		# ▼課税時レポートの表示設定。
+			if {_a2} = 0:
+				set {taxreport.%player%} to 0
+				message "<lime>[treasury] <r>課税時レポートを「なし」に設定しました。"
+			else if {_a2} = 1:
+				set {taxreport.%player%} to 1
+				message "<lime>[treasury] <r>課税時レポートを「詳細」に設定しました。"
+			else if {_a2} = 2:
+				set {taxreport.%player%} to 2
+				message "<lime>[treasury] <r>課税時レポートを「簡素」に設定しました。"
+			else:
+				message "<lime>[treasury] <red>その設定は無効です。"
+				message " <lime>/treasury report 0 <r>で<yellow>「レポートなし」<r>に設定。"
+				message " <lime>/treasury report 1 <r>で<yellow>「詳細なレポート」<r>に設定。"
+				message " <lime>/treasury report 2 <r>で<yellow>「簡素なレポート」<r>に設定。"
+			exit
+
+
+
+#
+# (トロッコ関連スクリプトは、atos.skに移動)
+#
+# ■ トロッコのクラフト阻止
+#
+#on craft of minecart:
+#	message "<lime>[<white>manager<lime>]<white> トロッコは駅にてどうぞ"
+#	cancel event
+#
+#
+#
+# ■ トロッコ下車のとき，そのトロッコは消滅する，トロッコ利用税のプール
+#
+#on exiting a vehicle:
+#	player is riding a minecart
+#	delete the minecart
+#	add 150 Gavas to {torotax.%player%}	#トロッコ利用税のプール
+#	add 150 Gavas to the player's money	#トロッコ代金のデポジット
+#	message "<lime>[<white>manager<lime>] トロッコデポジット <yellow>150<white> Gavas を返還しました"
+#	message "<lime>[<white>Tax-Office<lime>] 次回課税時累積 <yellow>+ 150<white> Gavas (トロッコ利用税として)"
+#
+#
+
+# ■ 所得のチェック + 初心者チュートリアルおよびゲストの移動制御(beginner.sk)
+# 　 エメラルド銀行を利用されると利益税が課税できないのでその対策。
+Every 15 second:
+	wait 2 seconds
+	loop all players:
+		# ▼所得のチェック
+		set {_m} to the loop-player's money - the loop-player's money + the loop-player's money
+		set {_l} to {lastmoney.%loop-player%}
+		set {_i} to 0
+		# ▽5秒前より資金が増えていたら，超過分を所得額としてプール。
+		if {_m} > {_l}:
+			set {_i} to {_m} - {_l}
+			add {_i} to {income.%loop-player%}
+		# ▽指定時のみデバッグログ表示。
+		if {taxdebug} = true:
+			message "● (前)%{_l}% → (今)%{_m}% ， (加)%{_i}% ， (得)%{income.%loop-player%}%" to loop-player	#テストメッセージ
+		set {lastmoney.%loop-player%} to {_m}
+		wait a tick
+	# ▼納税回数チェック
+	remove 1 from {taxeverycount}
+	if {taxeverycount} = 0:
+		invoke "incometax"
+		set {taxeverycount} to {taxevery}
+	# ▼ゲストの遠出チェック
+	# 【条件】ディーラーのいるとき
+	if {dealer} isn't "":
+		Loop all players:
+			# 【条件1】市民権を持たないとき
+			loop-player doesn't have permission "sakuraft.national"
+			# 【条件2】ディーラーとの距離が100mを超えるとき
+			distance between the loop-player and {dealer} is bigger than 100
+			# ▽ディーラーのいる場所へ飛ばされる
+			teleport the loop-player to {dealer}
+	# ▼初心者(チュートリアル中)の遠出・近づきチェック
+	Loop all players:
+		{tutorial.%loop-player%} < 200
+		set {_loc} to the loop-player's location			# 初心者の座標確認
+		set {_b1c} to the location at (-182, 72, -40) in "world"	# Tutorial第1段階の中心座標
+		set {_b2c} to the location at (-213, 69, 2) in "world"		# Tutorial第2段階の中心座標
+		set {_b2n} to the location at (-228, 64, 36) in "world"		# Tutorial第2段階の中心座標
+		set {_b3c} to the location at (-220, 55, 21) in "world"		# Tutorial第3段階の中心座標
+		set {_b3n} to the location at (-201, 58, 21) in "world"		# Tutorial第3段階の中心座標
+		# ▽第1段階
+		if {tutorial.%loop-player%} <= 30:
+			distance between {_loc} and {_b1c} > 40
+			teleport the loop-player to the location at (-182, 76, -31) in "world"
+			play raw sound "random.anvil_break" at loop-player with pitch 0.8 volume 10
+			message "<magenta>[tutorial] <yellow><b>遠くへ離れすぎました。<r>チュートリアルをこなしましょう。<yellow>▼" to loop-player
+			message "<magenta>[tutorial] <yellow><b>左クリックで次のテキストを表示<r>します。" to loop-player
+			set {tutorial.%loop-player%} to 2
+		# ▽第2段階A・遠出・近づき
+		else if {tutorial.%loop-player%} <= 46:
+			if distance between {_loc} and {_b2c} > 80:
+				teleport the loop-player to the location at (-228, 64, 36) in "world"
+				play raw sound "random.anvil_break" at loop-player with pitch 0.8 volume 10
+				message "<magenta>[tutorial] <yellow><b>遠くへ離れすぎました。<r>チュートリアルをこなしましょう。<yellow>▼" to loop-player
+				message "<magenta>[tutorial] <yellow><b>左クリックで次のテキストを表示<r>します。▼" to loop-player
+				set {tutorial.%loop-player%} to 48
+			else if distance between {_loc} and {_b2n} < 10:
+				play raw sound "random.levelup" at loop-player with pitch 2 volume 10
+				message "<magenta>[akatsuki]<r> ハローワークにたどりつけたわね！<yellow>▼" to loop-player
+				set {tutorial.%loop-player%} to 48
+		# ▽第2段階B1・遠出
+		else if {tutorial.%loop-player%} <= 57:
+			distance between {_loc} and {_b2c} > 80
+			teleport the loop-player to the location at (-237, 64, 37) in "world"
+			play raw sound "random.anvil_break" at loop-player with pitch 0.8 volume 10
+			message "<magenta>[tutorial] <yellow><b>遠くへ離れすぎました。<r>チュートリアルをこなしましょう。<yellow>▼" to loop-player
+			message "<magenta>[tutorial] <yellow><b>左クリックで次のテキストを表示<r>します。" to loop-player
+			set {tutorial.%loop-player%} to 48
+		# ▽第2段階B2・遠出
+		else if {tutorial.%loop-player%} <= 59:
+			distance between {_loc} and {_b2c} > 80
+			teleport the loop-player to the location at (-237, 64, 37) in "world"
+			play raw sound "random.anvil_break" at loop-player with pitch 0.8 volume 10
+			message "<magenta>[tutorial] <yellow><b>遠くへ離れすぎました。<r>チュートリアルをこなしましょう。<yellow>▼" to loop-player
+			message "<magenta>[tutorial] あと1つ，職に就く必要があります。<yellow><b>看板を右クリック<r>しましょう。<yellow>▼" to loop-player
+			set {tutorial.%loop-player%} to 58
+		# ▽第3段階A・遠出・近づき
+		else if {tutorial.%loop-player%} <= 68:
+			if distance between {_loc} and {_b3c} > 40:
+				teleport the loop-player to the location at (-201, 58, 21) in "world"
+				play raw sound "random.anvil_break" at loop-player with pitch 0.8 volume 10
+				message "<magenta>[tutorial] <yellow><b>遠くへ離れすぎました。<r>チュートリアルをこなしましょう。<yellow>▼" to loop-player
+				message "<magenta>[tutorial] <yellow><b>左クリックで次のテキストを表示<r>します。" to loop-player
+				set {tutorial.%loop-player%} to 70
+			if distance between {_loc} and {_b3n} < 8:
+				play raw sound "random.levelup" at loop-player with pitch 2 volume 10
+				message "<magenta>[akatsuki]<r> 駅にたどりつけたわね！<yellow>▼" to loop-player
+				set {tutorial.%loop-player%} to 70
+		# ▽第3段階B・遠出
+		else if {tutorial.%loop-player%} < 102:
+			distance between {_loc} and {_b3c} > 40
+			teleport the loop-player to the location at (-201, 58, 21) in "world"
+			play raw sound "random.anvil_break" at loop-player with pitch 0.8 volume 10
+			message "<magenta>[tutorial] <yellow><b>遠くへ離れすぎました。<r>チュートリアルをこなしましょう。<yellow>▼" to loop-player
+			message "<magenta>[tutorial] <yellow><b>左クリックで次のテキストを表示<r>します。" to loop-player
+			set {tutorial.%loop-player%} to 70
+
+
+# ■ 乗馬税・騎馬取得税の即時徴収
+on exiting a vehicle:
+	player is riding a horse
+	remove 300 gavas from the player's money
+	message "<lime>[<white>Tax-Office<lime>] 乗馬税 <yellow>%{horstax.%player%}%<white> Gavas 徴収しました。"
+
+
+# ■看板左クリック時のエメラルドの個数と所得を調査
+#on rightclick on sign:
+#	wait a tick
+#	# ▼所得のチェック
+#	set {_m} to the player's money
+#	# ▽5秒前より資金が増えていたら，超過分を所得額としてプール。
+#	if {_m} > {lastmoney.%player%}:
+#		set {_i} to {_m} - {lastmoney.%player%}
+#		add {_i} to {income.%player%}
+#	set {lastmoney.%player%} to {_m}
+#	# ▼インベントリ内部のエメラルドの個数を調査
+#	set {emerald.%player%} to number of emerald in the player's inventory
+#
+
+
+# ■エメラルド売却時の免税
+on leftclick on sign:
+	line 1 is "AdminShop"
+	line 4 is "Emerald"
+	wait a tick
+	set {_m} to the player's money
+	set {lastmoney.%player%} to {_m}
+
+
+# ■ 資金税・所得税を徴収する(20分おき，ログインプレイヤーのみ)
+sub "incometax":
+	# ▼ログ出力
+	log "徴税" to "money/tax.log"
+	loop all players:
+		# ▼税引き前資金を記憶しておく
+		set {_beforemoney} to the loop-player's money
+		# ▼所得税の計算
+		set {_cometax} to {income.%loop-player%} * {taxrate.%loop-player%} / 100
+#		message "%{taxrate.%loop-player%}%" to loop-player
+		# ▼プールしてきたすべての税を合計する
+		set {_taxsumm} to 0				# 初期化
+		add {_cometax} to {_taxsumm}			# 所得税を加える
+		remove {taxfree.%loop-player%} from {_taxsumm}	# 免税額を差し引く
+		# ▼徴税(設定時のみ)
+		if {cometaxcollect} = true:
+			add {_taxsumm} / 4 to {Treasury}					# 全徴税額の4分の1を国庫へ
+			execute console command "/money take %loop-player% %{_taxsumm}%"	# 納税
+			set {_xp} to rounded down {_cometax} * {@xprate}			# 贈呈経験値の計算
+			execute console command "/xp %{_xp}% %loop-player%"			# 経験値授与
+#		# ▽税の支払能力ありのとき
+#		If the loop-player's money > {_taxsumm}:
+#			add {_taxsumm} / 4 to {Treasury}		# 全徴税額の4分の1を国庫へ
+#			remove {_taxsumm} from the loop-player's money	# 納税
+#			set {_xp} to rounded down {_cometax} * {@xprate}
+#			execute console command "/xp %{_xp}% %loop-player%"	# 経験値授与
+#		# ▽税の支払能力なしのとき
+#		Else:
+#			add the loop-player's money / 4 to {Treasury}	# 所持金の4分の1を国庫へ
+#			set the loop-player's money to 0 Gavas		# 税が支払えないので，0ガバスになる
+		# ▽レポートの出力(ver2・簡素)
+		If {taxreport.%loop-player%} = 2:
+			message "<lime>[Tax-Office]<white> 所得税を徴収します。" to loop-player
+			message " <white>税引前 %{_beforemoney}% - 税額 %{_taxsumm}% = 税引後 %the loop-player's money%" to loop-player
+		# ▽レポートの出力(ver1・詳細)
+		Else If {taxreport.%loop-player%} = 1:
+			message "<lime>[Tax-Office]<white> 所得税を徴収します。" to loop-player
+			message " <orange>[<white>税引前<orange>]<yellow> %{_beforemoney}% <orange>[<white>所得<orange>]<yellow> %{income.%loop-player%}%" to loop-player
+			message " <cyan>[<white>所得税(税率:%{taxrate.%loop-player%}%％)<cyan>]<yellow> %{_cometax}% <white>Gavas，<cyan>[<white>トロッコ利用税<cyan>]<yellow> %{torotax.%loop-player%}% <white>Gavas" to loop-player
+#			message " <cyan>[<white>乗馬税・騎馬取得税<cyan>]<yellow> %{horstax.%loop-player%}% <white>Gavas，<cyan>[<white>クラフト税<cyan>]<yellow> %{claftax.%loop-player%}% <white>Gavas" to loop-player
+			message " <orange>[<white>免税額<orange>]<yellow> %{taxfree.%loop-player%}% <white>Gavas， <orange>[<white>課税計<orange>]<yellow> %{_taxsumm}% <white>Gavas， <orange>[<white>残高<orange>]<yellow> %the loop-player's money% " to loop-player
+		# ▽ログ出力
+		log "　%loop-player% %{_beforemoney}%-%{_taxsumm}%=%the loop-player's money%" to "money/tax.log"
+		# ▽各種値をリセット(バグ防止のため，残しておく必要がある)
+		set {income.%loop-player%} to 0 gavas	# 所得額をリセット
+		set {torotax.%loop-player%} to 0 gavas	# トロッコ利用税をリセット
+		set {horstax.%loop-player%} to 0 gavas	# 乗馬税・騎馬取得税をリセット
+		set {claftax.%loop-player%} to 0 gavas	# クラフト税をリセット
+		set {taxfree.%loop-player%} to 0 gavas	# 免税額をリセット
+		# ▽税率の加算(徐々に上がる)
+		if {taxrate.%loop-player%} < {cometaxrate}:
+			add 1 to {taxrate.%loop-player%}
+		# ▽税率の減算(一気に下がる)
+		else if {taxrate.%loop-player%} > {cometaxrate}:
+			set {taxrate.%loop-player%} to {cometaxrate}
+#		# ▽納税標語のランダム化
+#		set {_hyogo} to random integer from 0 to 5
+#		if {_hyogo} = 0:
+#			message "<grey>◆◆◆ 納税で 明るい未来の 架け橋を ◆◆◆" to loop-player
+#		else if {_hyogo} = 1:
+#			message "<grey>◆◆◆ 世の中は 税で成り立つ この町も ◆◆◆" to loop-player
+#		else if {_hyogo} = 2:
+#			message "<grey>◆◆◆ 納めよう 身近な税を よく知って ◆◆◆" to loop-player
+#		else if {_hyogo} = 3:
+#			message "<grey>◆◆◆ あふれてる 私の身近に 税の良さ ◆◆◆" to loop-player
+#		else if {_hyogo} = 4:
+#			message "<grey>◆◆◆ 税金は ぼくらの町を 支えてる ◆◆◆" to loop-player
+#		else if {_hyogo} = 5:
+#			message "<grey>◆◆◆ 税金は 未来をつくる タネになる ◆◆◆" to loop-player
+		# ▽連続未納カウント
+		If the loop-player's money <= 0:
+			add 1 to {gasaire.%loop-player%}
+		Else:
+			set {gasaire.%loop-player%} to 0
+		# ▽3連続未納の場合は，マルサと称してゾンビ5体が襲撃
+		If {gasaire.%loop-player%} >= 3:
+			spawn 5 zombies in front of the loop-player
+			broadcast "<lime>[<white>Manager<lime>] <red>%loop-player% に国税局査察部がガサ入れ！！"
+		Else If {gasaire.%loop-player%} >= 1:
+			set {_gasairelife} to 3
+			remove {gasaire.%loop-player%} from {_gasairelife}
+			message "<lime>[<white>Tax-Office<lime>]<white> 未納の税がありました。" to loop-player
+			message " <white>未納があと<red> %{_gasairelife}% <white>回続くと，国税局査察部がガサ入れします。" to loop-player
+		# ▽おちけつ
+		wait a tick
+
+
+# ■ 死亡時お見舞い金(10ガバス/回)
+
+on player respawn:
+	If the player's money <= 0:
+		the player's money = 0
+	add 10 Gavas to the player's money
+	message "<lime>[<white>Manager<lime>] 死亡お見舞い金として，<yellow>10<white> Gavas 振り込まれました"
+
+
+

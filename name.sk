@@ -1,0 +1,59 @@
+# ■ ゲーム内で表示される名前を変えるスクリプト Version 1.0
+
+
+# 更新履歴
+# 
+# Ver.1.0　2016/1/12更新
+#　・完成。
+
+
+
+# ■変数の初期設定
+variables:
+	{dispname.%player%} = ""		# 各プレイヤーが登録した名前。
+
+
+# ■ログイン時処置
+on login:
+	# □名前用のローカル変数に，とりあえずIDを代入。
+	set {_name} to player's name
+	# □名前変数の登録があれば，そちらを代入する。
+	if {dispname.%player%} != "":
+		set {_name} to {dispname.%player%}
+	# □表示される名前を変更。なお色つき。
+	# 　ゲスト…灰色
+	set the player's display name to "<grey>%{_name}%"
+	set the player's tablist name to "<grey>%{_name}%"
+	set the player's tag to "<grey>%{_name}%"
+	# 　一般…白色
+	if player has permission "sakuraft.national":
+		set the player's display name to "<white>%{_name}%"
+		set the player's tablist name to "<white>%{_name}%"
+		set the player's tag to "<white>%{_name}%"
+	# 　OP…黄緑色
+	if player has permission "sakuraft.op":
+		set the player's display name to "<lime>%{_name}%"
+		set the player's tablist name to "<lime>%{_name}%"
+		set the player's tag to "<lime>%{_name}%"
+	# 　SAKURAさん…金色
+	if player's name is "SAKURA_ZR":
+		set the player's display name to "<gold>%{_name}%"
+		set the player's tablist name to "<gold>%{_name}%"
+		set the player's tag to "<gold>%{_name}%"
+
+
+# ■名前変更コマンド
+command /name <text>:
+	trigger:
+		# □コマンド実行には名札が必要
+		if player don't have a name tag:
+			message "<lime>[<white>name<lime>]<red> このコマンドを実行するには，名札が1つ必要です。"
+			exit
+		# □あたらしい名前を変数にセット
+		set {dispname.%player%} to arg 1
+		# □名札を消費
+		remove a name tag from the player
+		# □設定を有効にするために強制ログアウト(説明つき)
+		kick the player due to "<lime>新しい名前の設定が成功しました。設定を有効にするためには，もう一度ログインしてください。"
+
+

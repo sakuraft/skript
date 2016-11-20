@@ -1,0 +1,370 @@
+# ■ ChestShop在庫管理システム(イムズ) 　　　　 ■ #
+# ■ chest shop Inventory Management System　　 ■ #
+# ■ ims.sk　ver.0.1　　 　　　　　　　　　　　 ■ #
+# ■ 　　　　　 by Kasumi Juzo (sakraft server) ■ #
+#
+#　☆概要
+#　　・自身の設置したチェストショップの在庫状況を管理します。
+#　　・"skQuery"の導入が必要。
+#
+#　☆履歴
+#　　16/11/08: version 0.1.0
+#　　　・完成。在庫管理や登録など最低限の機能は備えた。
+#　☆履歴
+#　　16/11/08: version 0.1.1
+#　　　・在庫チェックについて，表示方法を「空だけ表示」「満タンだけ表示」「すべて表示」
+#　　　　「空と満タンだけ表示(デフォルト)」の4種類をご用意。
+#　　　・IMSから登録を外す方法を増やす。
+#　　　　①チェストを壊す(今まで通りの方法)
+#　　　　②名札を持ってチェストを左クリック
+#　　　　③/ims delete <ID>
+#　　　・IMSの登録名変更方法を追加。
+#　　　　①/ims <任意の名称> (今まで通りの方法，直前に設定したチェストのみ有効)
+#　　　　②/ims name <ID> <任意の名称>
+
+
+command /imsdel:
+	trigger:
+		delete {ims.pos::*}
+		delete {ims.name::*}
+		delete {ims.owner::*}
+
+
+# 【コマンド】IMS関連。
+command /ims <text=help>[ <text>[ <text>]]:
+	trigger:
+		if arg-1 is "help":
+			message "<cyan>[ims]<r> 機能は以下の通りです。 (管)は管理者コマンド。"
+			message " <green>check<r>: 在庫確認。費用：0.2 Gavas/chest"
+#			message " <green>open<r>: 遠隔在庫補充。費用：超高い"
+			message " <green>(その他文字列)<r>: 直前に登録したチェストに名前をつける。費用：安い"
+			message "<cyan>[ims]<r> その他IMSにかかわる機能です。"
+			message " <light blue>チェストを登録する<r>: 名札を持ってチェストを右クリック。"
+			message " <light blue>登録解除<r>: 対象のチェストを破壊。"
+			message " <r>● ラージチェストは，1ブロック壊すと，もう一方のブロックも破壊されます。"
+			stop
+		else if arg-1 is "check":		# ▼自身の在庫確認。
+			# ▽▽checkのヘルプ用テキスト
+			if arg-2 is "help":
+				message "<cyan>[ims] <r><yellow>/ims check (表示選別)"
+				message " あなたがIMSに登録したチェストの在庫状況を一覧表示します。"
+				message " <lime>(表示選別) <r>表示させる内容を指定。"
+				message " <r>● all >>>> 全部表示。"
+				message " <r>● empty >>>> 空・僅のチェストのみ表示。"
+				message " <r>● full >>>> 満・多のチェストのみ表示。"
+				message " <r>● (入力しない) >>>> 空・僅・多・満のチェストを表示(デフォルト)。"
+				stop
+			# ▽▽表示ソートのフラグを立てる
+			set {_flag} to "default"
+			set {_flag} to "default"
+			if arg-2 is "full":
+				set {_flag} to "full"
+			else if arg-2 is "empty":
+				set {_flag} to "empty"
+			else if arg-2 is "all":
+				set {_flag} to "all"
+			message "<lime>[ims]<r> 在庫を確認します。"
+			loop integers from 0 to 2047:
+				{ims.owner::%loop-number%} is player
+				# ▽カネ不足チェック
+				if player's money < 0.2:
+					message "<lime>[ims]<red><b> エラー！ 在庫チェックの費用が足りません。"
+					stop
+				# ▽カネ徴収。
+				remove 0.2 from player's money
+				# ▽そのチェストが大きいか小さいかを調査。
+				set {_lc} to "小"
+				set {_loc} to {ims.pos::%loop-number%}
+				if block north of {_loc} is a chest:
+					set {_lc} to "大"
+				if block south of {_loc} is a chest:
+					set {_lc} to "大"
+				if block east of {_loc} is a chest:
+					set {_lc} to "大"
+				if block west of {_loc} is a chest:
+					set {_lc} to "大"
+				# ▽チェストの容量を調査(チェストのサイズで基準が違う)。
+				if {_lc} is "小":
+					if block 0 north of {_loc} can hold 27 Minecarts:
+						{_flag} != "full"
+						message " <purple><b>空<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+					else if block 0 north of {_loc} can hold 24 Minecarts:
+						{_flag} != "full"
+						message " <blue><b>僅<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+					else if block 0 north of {_loc} can hold 18 Minecarts:
+						{_flag} = "all"
+						message " <green><b>少<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+					else if block 0 north of {_loc} can hold 9 Minecarts:
+						{_flag} = "all"
+						message " <yellow><b>中<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+					else if block 0 north of {_loc} can hold 3 Minecarts:
+						{_flag} != "empty"
+						message " <orange><b>多<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+					else:
+						{_flag} != "empty"
+						message " <red><b>満<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+				else:
+					if block 0 north of {_loc} can hold 54 Minecarts:
+						{_flag} != "full"
+						message " <purple><b>空<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+					else if block 0 north of {_loc} can hold 51 Minecarts:
+						{_flag} != "full"
+						message " <blue><b>僅<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+					else if block 0 north of {_loc} can hold 36 Minecarts:
+						{_flag} = "all"
+						message " <green><b>少<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+					else if block 0 north of {_loc} can hold 18 Minecarts:
+						{_flag} = "all"
+						message " <yellow><b>中<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+					else if block 0 north of {_loc} can hold 3 Minecarts:
+						{_flag} != "empty"
+						message " <orange><b>多<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+					else:
+						{_flag} != "empty"
+						message " <red><b>満<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+			message "<lime>[ims]<r> 以上。"
+		else if arg-1 is "delete" or "cancel":		# ▼遠隔でIMSから登録を解除。
+			set {_id} to arg-2 parsed as integer
+			# ▽エラーチェック。
+			if {_id} isn't set:
+				message "<lime>[ims]<red><b> エラー！ チェストIDの指定が間違っています。"
+				stop
+			if {ims.owner::%{_id}%} isn't player:
+				player doesn't have permission "sakraft.op"
+				message "<lime>[ims]<red><b> エラー！ そのチェストはあなたの登録ではありません。"
+				stop
+			# ▽はずす。
+			message "<lime>[ims]<r> 次の登録をIMSから外しました。"
+			message " <light gray>ID:%{_id}% Name:%{ims.name::%{_id}%}% Owner:%{ims.owner::%{_id}%}%"
+			delete {ims.pos::%{_id}%}
+			delete {ims.name::%{_id}%}
+			delete {ims.owner::%{_id}%}
+			stop
+		else if arg-1 is "name" or "lavel":		# ▼ID指定したチェストにラベル(名前)を設定。
+			# ▽▽(その他)のヘルプ用テキスト
+			if arg-2 is "help":
+				message "<cyan>[ims] <r><yellow>/ims name <ID> <文字列>"
+				message " 直前にIMSに登録したチェストにラベル(名前)をつけます。要50ガバス。"
+				message " <yellow><ID> <r>ラベルを変更したいチェストのIDを指定。"
+				message " <yellow><文字列> <r>つけたいラベルを記入。"
+				message " <r>● 文字列中に<add1>や<add23>などを含ませると，住所に置換されます。"
+				stop
+			set {_id} to arg-2 parsed as integer
+			# ▽エラーチェック。
+			if {_id} isn't set:
+				message "<lime>[ims]<red><b> エラー！ チェストIDの指定が間違っています。"
+				stop
+			if {ims.owner::%{_id}%} isn't player:
+				player doesn't have permission "sakraft.op"
+				message "<lime>[ims]<red><b> エラー！ そのチェストはあなたの登録ではありません。"
+				stop
+			# ▽カネ不足チェック
+			if player's money < 50:
+				message "<lime>[ims]<red><b> エラー！ 登録費用が足りません。"
+				stop
+			# ▽カネ徴収。
+			remove 50 from player's money
+			# ▽ラベル設定開始。
+			set {_loc} to {ims.pos::%{_id}%}
+			invoke "checkadd" from block 0 north of {_loc}
+			set {ims.name::%{_id}%} to arg-3
+			# ▽特別なコマンドを仕込むと，その文字列が置換されて住所などを自動表示。
+			replace all "<add1>" with {add.lv1} in {ims.name::%{_id}%}
+			replace all "<add2>" with {add.lv2} in {ims.name::%{_id}%}
+			replace all "<add3>" with {add.lv3} in {ims.name::%{_id}%}
+			replace all "<add12>" with "%{add.lv1}%%{add.lv2}%" in {ims.name::%{_id}%}
+			replace all "<add23>" with "%{add.lv2}%%{add.lv3}%" in {ims.name::%{_id}%}
+			replace all "<add123>" with "%{add.lv1}%%{add.lv2}%%{add.lv3}%" in {ims.name::%{_id}%}
+			message "<lime>[ims]<r> システムに登録完了。"
+			message " <light gray>ID:%{_id}% Name:%{ims.name::%{_id}%}%"
+			delete {ims.lastid::%player%}
+			stop
+		else:		# ▼直前に登録したチェストにラベル(名前)を設定。
+			# ▽▽(その他)のヘルプ用テキスト
+			if arg-2 is "help":
+				message "<cyan>[ims] <r><yellow>/ims <文字列>"
+				message " 直前にIMSに登録したチェストにラベル(名前)をつけます。要50ガバス。"
+				message " <yellow><文字列> <r>つけたいラベルを記入。"
+				message " <r>● 文字列中に<add1>や<add23>などを含ませると，住所に置換されます。"
+				stop
+			# ▽引数不足チェック
+			if {ims.lastid::%player%} isn't set:
+				message "<lime>[ims]<red><b> エラー！ 直前の登録チェストIDがわかりません。"
+				stop
+			# ▽カネ不足チェック
+			if player's money < 50:
+				message "<lime>[ims]<red><b> エラー！ 登録費用が足りません。"
+				stop
+			# ▽カネ徴収。
+			remove 50 from player's money
+			# ▽ラベル設定開始。
+			set {_id} to {ims.lastid::%player%}
+			set {_loc} to {ims.pos::%{_id}%}
+			invoke "checkadd" from block 0 north of {_loc}
+			set {ims.name::%{_id}%} to arg-1
+			# ▽特別なコマンドを仕込むと，その文字列が置換されて住所などを自動表示。
+			replace all "<add1>" with {add.lv1} in {ims.name::%{_id}%}
+			replace all "<add2>" with {add.lv2} in {ims.name::%{_id}%}
+			replace all "<add3>" with {add.lv3} in {ims.name::%{_id}%}
+			replace all "<add12>" with "%{add.lv1}%%{add.lv2}%" in {ims.name::%{_id}%}
+			replace all "<add23>" with "%{add.lv2}%%{add.lv3}%" in {ims.name::%{_id}%}
+			replace all "<add123>" with "%{add.lv1}%%{add.lv2}%%{add.lv3}%" in {ims.name::%{_id}%}
+			message "<lime>[ims]<r> システムに登録完了。"
+			message " <light gray>ID:%{_id}% Name:%{ims.name::%{_id}%}%"
+			delete {ims.lastid::%player%}
+			stop
+
+
+
+
+
+# 【イベント】名札を持ってチェストを右クリックで，IMSに登録(名札消費あり)。
+on rightclick on a chest with a name tag:
+	cancel the event
+	invoke "checkadd" from the block
+#	message "<lime>[ims]<r> %{add.lv1}%%{add.lv2}%%{add.lv3}% - %position of the block%"
+	# ▽すでに同じチェストを登録していないか調べ，エラーを伝える。
+	loop {ims.pos::*}:
+		if position of the block = {ims.pos::%loop-index%}:
+			message "<lime>[ims]<red><b> エラー！ 登録が以下のチェストと重複しています。"
+			message " <light gray>ID:%loop-index% Name:%{ims.name::%loop-index%}% Owner:%{ims.owner::%loop-index%}%"
+			stop
+		else if position 1 meter east of the block = {ims.pos::%loop-index%}:
+			message "<lime>[ims]<red><b> エラー！ 登録が以下のチェストと重複しています。"
+			message " <light gray>ID:%loop-index% Name:%{ims.name::%loop-index%}% Owner:%{ims.owner::%loop-index%}%"
+			stop
+		else if position 1 meter west of the block = {ims.pos::%loop-index%}:
+			message "<lime>[ims]<red><b> エラー！ 登録が以下のチェストと重複しています。"
+			message " <light gray>ID:%loop-index% Name:%{ims.name::%loop-index%}% Owner:%{ims.owner::%loop-index%}%"
+			stop
+		else if position 1 meter north of the block = {ims.pos::%loop-index%}:
+			message "<lime>[ims]<red><b> エラー！ 登録が以下のチェストと重複しています。"
+			message " <light gray>ID:%loop-index% Name:%{ims.name::%loop-index%}% Owner:%{ims.owner::%loop-index%}%"
+			stop
+		else if position 1 meter south of the block = {ims.pos::%loop-index%}:
+			message "<lime>[ims]<red><b> エラー！ 登録が以下のチェストと重複しています。"
+			message " <light gray>ID:%loop-index% Name:%{ims.name::%loop-index%}% Owner:%{ims.owner::%loop-index%}%"
+			stop
+	# ▽名札を1個消費
+	if player's gamemode is survival:
+		remove a name tag from the player
+	# ▽あたらしい住所を登録
+	loop integers from 0 to 2047:
+		if {ims.name::%loop-number%} isn't set:
+			set {ims.name::%loop-number%} to "%{add.lv1}%%{add.lv2}%%{add.lv3}%のショップ"
+			set {ims.pos::%loop-number%} to position of the block
+			set {ims.owner::%loop-number%} to "%player%"
+			set {ims.lastid::%player%} to loop-number
+			message "<lime>[ims]<r> システムに登録完了。"
+			message " <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}%"
+			stop
+	# ▽チェスト登録の上限を超えたらエラーを伝える。
+	message "<lime>[ims]<red><b> エラー！ チェスト登録数の限界を超えました。"
+
+
+
+
+# 【イベント】名札を持ってチェストを左クリックで，IMSに登録(名札消費なし)。
+on leftclick on a chest with a name tag:
+	# ▽クリックしたチェストがIMSに登録されていた場合，登録から外す。
+	loop integers from 0 to 2047:
+		if position of the block = {ims.pos::%loop-number%}:
+			message "<lime>[ims]<r> 次の登録をIMSから外しました。"
+			message " <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Owner:%{ims.owner::%loop-number%}%"
+			delete {ims.pos::%loop-number%}
+			delete {ims.name::%loop-number%}
+			delete {ims.owner::%loop-number%}
+			stop
+		else if position 1 meter east of the block = {ims.pos::%loop-number%}:
+			message "<lime>[ims]<r> 次の登録をIMSから外しました。"
+			message " <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Owner:%{ims.owner::%loop-number%}%"
+			delete {ims.pos::%loop-number%}
+			delete {ims.name::%loop-number%}
+			delete {ims.owner::%loop-number%}
+			stop
+		else if position 1 meter west of the block = {ims.pos::%loop-number%}:
+			message "<lime>[ims]<r> 次の登録をIMSから外しました。"
+			message " <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Owner:%{ims.owner::%loop-number%}%"
+			delete {ims.pos::%loop-number%}
+			delete {ims.name::%loop-number%}
+			delete {ims.owner::%loop-number%}
+			stop
+		else if position 1 meter north of the block = {ims.pos::%loop-number%}:
+			message "<lime>[ims]<r> 次の登録をIMSから外しました。"
+			message " <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Owner:%{ims.owner::%loop-number%}%"
+			delete {ims.pos::%loop-number%}
+			delete {ims.name::%loop-number%}
+			delete {ims.owner::%loop-number%}
+			stop
+		else if position 1 meter south of the block = {ims.pos::%loop-number%}:
+			message "<lime>[ims]<r> 次の登録をIMSから外しました。"
+			message " <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Owner:%{ims.owner::%loop-number%}%"
+			delete {ims.pos::%loop-number%}
+			delete {ims.name::%loop-number%}
+			delete {ims.owner::%loop-number%}
+			stop
+	# ▽クリックしたチェストがIMSに登録されていなかった場合のエラーメッセージ。
+	message "<lime>[ims]<red><b> エラー！ このチェストはIMSに登録されていません。"
+
+
+
+
+# 【イベント】チェストを壊したとき，IMSから解除。
+on break of chest:
+	# ▽ラージチェストの場合，2ブロックどちらも破壊する。
+	if the block 1 meter east of the block is chest:
+		delete the block 1 meter east of the block
+		drop a chest
+	else if the block 1 meter west of the block is chest:
+		delete the block 1 meter west of the block
+		drop a chest
+	else if the block 1 meter north of the block is chest:
+		delete the block 1 meter north of the block
+		drop a chest
+	else if the block 1 meter south of the block is chest:
+		delete the block 1 meter south of the block
+		drop a chest
+	# ▽破壊したチェストがIMSに登録されていた場合，登録から外す。
+	loop integers from 0 to 2047:
+		if position of the block = {ims.pos::%loop-number%}:
+			message "<lime>[ims]<r> 次の登録をIMSから外しました。"
+			message " <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Owner:%{ims.owner::%loop-number%}%"
+			delete {ims.pos::%loop-number%}
+			delete {ims.name::%loop-number%}
+			delete {ims.owner::%loop-number%}
+			stop
+		else if position 1 meter east of the block = {ims.pos::%loop-number%}:
+			message "<lime>[ims]<r> 次の登録をIMSから外しました。"
+			message " <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Owner:%{ims.owner::%loop-number%}%"
+			delete {ims.pos::%loop-number%}
+			delete {ims.name::%loop-number%}
+			delete {ims.owner::%loop-number%}
+			stop
+		else if position 1 meter west of the block = {ims.pos::%loop-number%}:
+			message "<lime>[ims]<r> 次の登録をIMSから外しました。"
+			message " <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Owner:%{ims.owner::%loop-number%}%"
+			delete {ims.pos::%loop-number%}
+			delete {ims.name::%loop-number%}
+			delete {ims.owner::%loop-number%}
+			stop
+		else if position 1 meter north of the block = {ims.pos::%loop-number%}:
+			message "<lime>[ims]<r> 次の登録をIMSから外しました。"
+			message " <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Owner:%{ims.owner::%loop-number%}%"
+			delete {ims.pos::%loop-number%}
+			delete {ims.name::%loop-number%}
+			delete {ims.owner::%loop-number%}
+			stop
+		else if position 1 meter south of the block = {ims.pos::%loop-number%}:
+			message "<lime>[ims]<r> 次の登録をIMSから外しました。"
+			message " <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Owner:%{ims.owner::%loop-number%}%"
+			delete {ims.pos::%loop-number%}
+			delete {ims.name::%loop-number%}
+			delete {ims.owner::%loop-number%}
+			stop
+
+
+
+# 【イベント】ログインして8秒後に，在庫を自動チェック。
+on join:
+	wait 1 seconds
+	make player execute command "/ims check"

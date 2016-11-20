@@ -1,0 +1,112 @@
+# ■ 表示情報制御バー(旧・資金表示バー)　　　　 ■ #
+# ■ money_bar.sk　ver.2.0.0 　　　　　　　　　 ■ #
+# ■ 　　　　　 by Kasumi Juzo (sakraft server) ■ #
+#
+#　☆概要
+#　　・Tabバーに2秒ごとに最新情報を表示。
+#　　・(旧)画面上に資金を表示させるスクリプト。要 "skRayFall"
+#
+#　☆履歴
+#　　16/03/30: version 1.0.0
+#　　　・完成。表示方法は「アクションバー」か「Tabを押す」のいずれか。
+#　　16/11/05: version 2.0.0
+#　　　・仕様変更。情報は基本的にTabを押さないと表示されないようになりました。
+#　　16/11/17: version 2.0.1
+#　　　・skriptの「at time」イベントがイカれているので，
+#　　　　日付の変更(mw_calender.sk)トリガーと，BGMを流す演出をこちらに統合。
+
+# ■変数の初期設定
+variables:
+	{timer6h} = 0			# 6時間おきタイマー
+
+
+
+# ■ Tabバー表示制御
+# ▽(下部)自身の所持金，リアル時刻
+every 9 seconds:
+	invoke "music"
+	# ▽(上部)0～2秒 各プレイヤーの現在時刻
+	loop all players:
+		invoke "checkadd" from location at the loop-player
+		set tab header to "<green><b>現在地：<r> %{add.lv1}%<b>%{add.lv2}%<r>%{add.lv3}%" and footer to "<gold>%the loop-player's money% <lime>%now%" for loop-player
+	wait 3 seconds
+	invoke "music"
+	# ▽(上部)2～4秒 国庫貯蓄額
+	set {_tr} to "%{treasury}% Gavas" parsed as money
+	loop all players:
+		set tab header to "<green><b>国庫：<r> %{_tr}%" and footer to "<gold>%the loop-player's money% <lime>%now%" for loop-player
+	wait 3 seconds
+	invoke "music"
+	set {_t} to "world"'s time
+	# ▽(上部)4～6秒 ワールド内暦と時刻
+	loop all players:
+		set tab header to "<green><b>ワールド時刻：<r> %{cyear}%/%{cmonth}%/%{cday}% %{_t}%" and footer to "<gold>%the loop-player's money% <lime>%now%" for loop-player
+
+
+
+# ■ BGMを流す演出サブルーチン
+Sub "music":
+	# ▽朝
+	if time in "world" is between 6:00 and 11:59:
+		if {timer6h} is 1 or 2:
+			invoke "tearoff"
+		else if {timer6h} is 2 or 3:
+#			play raw sound "sakuraft.morning" at the location (0, 127, 0) of world "world" with pitch 1 volume 1000
+			execute console command "/playsound sakuraft.morning @r ~ ~ ~ 1000 1.0 1.0"
+		set {timer6h} to 0
+	else if time in "world" is between 12:00 and 17:59:
+		if {timer6h} is 3 or 0:
+#			play raw sound "sakuraft.noon" at the location (0, 127, 0) of world "world" with pitch 1 volume 1000
+			execute console command "/playsound sakuraft.noon @r ~ ~ ~ 1000 1.0 1.0"
+		set {timer6h} to 1
+	else if time in "world" is between 18:00 and 23:59:
+		if {timer6h} is 0 or 1:
+#			play raw sound "sakuraft.evening" at the location (0, 127, 0) of world "world" with pitch 1 volume 1000
+			execute console command "/playsound sakuraft.evening @r ~ ~ ~ 1000 1.0 1.0"
+		set {timer6h} to 2
+	else if time in "world" is between 0:00 and 5:59:
+		if {timer6h} is 1 or 2:
+#			play raw sound "sakuraft.night" at the location (0, 127, 0) of world "world" with pitch 1 volume 1000
+			execute console command "/playsound sakuraft.night @r ~ ~ ~ 1000 1.0 1.0"
+		set {timer6h} to 3
+
+
+
+#【旧】
+#
+# 【コマンド】資金表示バーの表示設定
+#command /moneybar <number>:
+#	description: 資金表示バーの設定を行います。
+#	aliases: /mb
+#	trigger:
+#		if arg = 0:
+#			set {moneybar.%player%} to 0
+#			kick the player due to "資金表示バーを「非表示」に設定しました。設定を有効にするため，再ログインしてください。"
+#		else if arg = 1:
+#			set {moneybar.%player%} to 1
+#			kick the player due to "資金表示バーを「Tabキーを押して表示」に設定しました。設定を有効にするため，再ログインしてください。"
+#		else if arg = 2:
+#			set {moneybar.%player%} to 2
+#			kick the player due to "資金表示バーを「つねに表示」に設定しました。設定を有効にするため，再ログインしてください。"
+#		else if arg = 3:
+#			set {moneybar.%player%} to 3
+#			kick the player due to "資金表示バーを「速度表示」に設定しました。設定を有効にするため，再ログインしてください。"
+#		else:
+#			set {taxreport.%player%} to 0
+#			message "<lime>[Tax-Office] <r>その設定は無効です。"
+#			message " <lime>/moneybar 0 <r>で<yellow>「非表示」<r>に設定。"
+#			message " <lime>/moneybar 1 <r>で<yellow>「表示」<r>に設定。"
+#
+#
+#every 2 seconds:
+#	loop all players:
+#		if {moneybar.%loop-player%} = 1:
+#			set tab header to "<green><b>資金：<gold>%the loop-player's money%" and footer to "" for loop-player
+#		else if {moneybar.%loop-player%} = 2:
+#			if loop-player isn't riding a minecart:
+#				set action bar of loop-player to "<lime><b>≪<r><b> %the loop-player's money% <lime><b>≫"
+#		else if {moneybar.%loop-player%} = 3:
+#			set {_d} to distance between the loop-player and {lastpos.%loop-player%}
+#			set {_s} to {_d} * 1.8
+#			set action bar of loop-player to "<magenta><b>≪<r><b> %{_s}% km/h <magenta><b>≫"
+#			set {lastpos.%loop-player%} to the loop-player's position

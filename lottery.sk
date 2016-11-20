@@ -1,0 +1,215 @@
+# スクラッチくじ
+# いつでもいくつでも引けるくじ。
+# <i>くじの内容と額は1か月ごとに更新。</i>
+
+# ■固定値
+#options:
+#	lot.amount: 3
+#	lot.1.money: 100			# 駅通過時にかかる追加の急行料金
+#	lot.1.1: 150 Gavas		# トロッコ下車時に手元に戻ってくるカネ
+
+# ■変数の初期設定
+variables:
+	{lottery} = 0		# くじID。
+
+
+# ■くじを引く看板を設置(OP権限)
+on sign change:
+	line 2 is "loto" or "loto10" or "loto30"
+	# ▼2行目「loto」→単発ガチャ
+	# 　1行目には宝くじセンターの名前でも入れておけ
+	if line 2 is "loto":
+		set line 2 to "<gray>━━━━━━━━━━━━━━"
+		set line 3 to "<gold>★ <red><b>くじを引く <gold>★"
+		set line 4 to "<light cyan>(単発)"
+	# ▼2行目「loto10」→10連ガチャ
+	# 　1行目には宝くじセンターの名前でも入れておけ
+	else if line 2 is "loto10":
+		set line 2 to "<gray>━━━━━━━━━━━━━━"
+		set line 3 to "<gold>★ <red><b>くじを引く <gold>★"
+		set line 4 to "<lime>(10連)"
+	# ▼2行目「loto30」→30連ガチャ
+	# 　1行目には宝くじセンターの名前でも入れておけ
+	else if line 2 is "loto30":
+		set line 2 to "<gray>━━━━━━━━━━━━━━"
+		set line 3 to "<gold>★ <red><b>くじを引く <gold>★"
+		set line 4 to "<pink>(30連)"
+	# ▼OP権限所持者以外は看板設置不可
+	if player don't have permission "sakuraft.op":
+		cancel the event
+
+
+# ■くじ看板を右クリック(すると，くじを引く)
+on rightclick on sign:
+	line 4 is "<light cyan>(単発)" or "<lime>(10連)" or "<pink>(30連)"
+	set {_hiita} to 1
+	if line 4 = "<light cyan>(単発)":
+		set {_kaisu} to 1
+		message "<gold>[<white>lottery<gold>]<white> くじを <cyan><B>1回<r> 引きます。"
+		wait a tick
+	else if line 4 = "<lime>(10連)":
+		set {_kaisu} to 10
+		message "<gold>[<white>lottery<gold>]<white> くじを <cyan><B>10回<r> 引きます。"
+		wait 0.5 second
+	else if line 4 = "<pink>(30連)":
+		set {_kaisu} to 30
+		message "<gold>[<white>lottery<gold>]<white> くじを <cyan><B>30回<r> 引きます。"
+		wait 0.5 second
+	if {lottery} = 0:	# くじ0番
+		set {_m} to 50	# くじの価格はここに設定
+		while {_hiita} <= {_kaisu}:
+			if player's money < {_m}:
+				message "<gold>[<white>lottery<gold>]<white> 資金不足のため，くじ引きを <red><B>%{_hiita}%回目<r> でやめました。"
+				exit
+			remove {_m} from the player's money
+			invoke "casloto0" from player and {_hiita} and {_kaisu}
+			add 1 to {_hiita}
+			wait a tick
+	if {lottery} = 1:	# くじ1番
+		set {_m} to 300	# くじの価格はここに設定
+		while {_hiita} <= {_kaisu}:
+			if player's money < {_m}:
+				message "<gold>[<white>lottery<gold>]<white> 資金不足のため，くじ引きを <red><B>%{_hiita}%回目<r> でやめました。"
+				exit
+			if {Treasury} < 500000:	# ▽国庫残高の確認
+				message "<gold>[<white>lottery<gold>]<white> 国庫不足のため，くじ引きをやめました。"
+				exit
+			remove {_m} from the player's money
+			invoke "casloto1" from player and {_hiita} and {_kaisu}
+			set {_money} to the player's money		# ▽免税措置
+			set {lastmoney.%player%} to {_money}
+			add 1 to {_hiita}
+			wait a tick
+
+
+
+
+
+
+# ■種別変更看板を左クリック(すると，くじの説明をする)
+on leftclick on sign:
+	line 4 is "<light cyan>(単発)" or "<pink>(10連)"
+	make player execute command "/lottery"
+
+
+# ■コマンド入力(すると，くじの説明をする)
+command /lottery:
+	aliases: /loto
+	trigger:
+		if {lottery} = 0:
+			invoke "desloto0" from player
+		if {lottery} = 1:
+			invoke "desloto1" from player
+
+
+# ■くじの内容を任意に入れ替える(OP権限)
+command /lotoset <number>:
+	permission: sakuraft.op
+	trigger:
+		set {lottery} to arg 1
+		message "<gold>[<white>lottery<gold>]<white> くじセットを<lime><B> %{lottery}%<r>番に変更しました。"
+
+
+# -------------------------------------------------------------------------------------------------
+# ■くじの中身・説明
+# -------------------------------------------------------------------------------------------------
+
+#【くじ0番:オータムチャンスくじ】
+# 50G/回
+#
+# ハズレ  10％
+# りんご  30％
+# スイカ  20％
+# クッキー 15％
+# パン  10％
+# ベイクドポテト*4 5％
+# 焼き鳥*2 5％
+# ステーキ 5％
+
+sub "casloto0":
+	set {_p} to parameter-1
+	set {_h} to parameter-2
+	set {_k} to parameter-3
+	set {_r} to a random number between 0 and 9.99
+	if {_r} < 3:
+		drop an apple at {_p}'s location
+		message " <gray>[%{_h}%/%{_k}%] <gold><B>りんご<r> が当たりました！" to {_p}
+	else if {_r} < 5:
+		drop a melon slice at {_p}'s location
+		message " <gray>[%{_h}%/%{_k}%] <gold><B>スイカ<r> が当たりました！" to {_p}
+	else if {_r} < 6:
+		drop a bread at {_p}'s location
+		message " <gray>[%{_h}%/%{_k}%] <gold><B>パン<r> が当たりました！" to {_p}
+	else if {_r} < 7.5:
+		drop a cookie at {_p}'s location
+		message " <gray>[%{_h}%/%{_k}%] <gold><B>クッキー<r> が当たりました！" to {_p}
+	else if {_r} < 8:
+		drop 4 Baked Potatoes at {_p}'s location
+		message " <gray>[%{_h}%/%{_k}%] <gold><B>ベイクドポテト 4つ<r> が当たりました！" to {_p}
+	else if {_r} < 8.5:
+		drop 2 Cooked Chicken at {_p}'s location
+		message " <gray>[%{_h}%/%{_k}%] <gold><B>焼き鳥 2個<r> が当たりました！" to {_p}
+	else if {_r} < 9:
+		drop a Steak at {_p}'s location
+		message " <gray>[%{_h}%/%{_k}%] <gold><B>ステーキ<r> が当たりました！" to {_p}
+	else:
+		message " <gray>[%{_h}%/%{_k}%] ハズレました..." to {_p}
+
+
+sub "desloto0":
+	set {_p} to parameter-1
+	message "<gold>[<white>lottery<gold>]<white> 現在は， <gold><B>オータムチャンスくじ<r> です。" to {_p}
+	message " 価格： <cyan>50 Gavas" to {_p}
+	message " 賞品一覧： <grey>※低確率順，ハズレあり" to {_p}
+	message " <gold><i> ステーキ，焼き鳥x2，ベイクドポテトx4，パン，クッキー，スイカ，りんご。" to {_p}
+
+
+#【くじ1番:サクラフトジャンボ宝くじ】
+#
+# 300G/回
+#
+# 0 G 80％
+# 300 G 18.79％
+# 3000 G 1％
+# 10000 G 0.2％
+# 500000 G 0.01％
+
+sub "casloto1":
+	set {_p} to parameter-1
+	set {_h} to parameter-2
+	set {_k} to parameter-3
+	set {_r} to a random number between 0 and 99.99
+	if {_r} < 80:
+		message " <gray>[%{_h}%/%{_k}%] ハズレました..." to {_p}
+	else if {_r} < 98.79:
+		add 300 to {_p}'s money
+		remove 300 from {Treasury}
+		message " <gray>[%{_h}%/%{_k}%] <gold><B>300ガバス<r> が当たりました！" to {_p}
+	else if {_r} < 99.79:
+		add 3000 to {_p}'s money
+		remove 3000 from {Treasury}
+		message " <gray>[%{_h}%/%{_k}%] <gold><B>3000ガバス<r> が当たりました！" to {_p}
+	else if {_r} < 99.99:
+		add 10000 to {_p}'s money
+		remove 10000 from {Treasury}
+		message " <gray>[%{_h}%/%{_k}%] <gold><B>10000ガバス<r> が当たりました！" to {_p}
+	else:
+		add 500000 to {_p}'s money
+		remove 500000 from {Treasury}
+		message " <gray>[%{_h}%/%{_k}%] <gold><B>500000ガバス<r> が当たりました！" to {_p}
+
+
+sub "desloto1":
+	set {_p} to parameter-1
+	message "<gold>[<white>lottery<gold>]<white> 現在は， <gold><B>サクラフトジャンボ宝くじ<r> です。" to {_p}
+	message " 価格： <cyan>300 Gavas" to {_p}
+	message " 当せん金： <grey>※低確率順，ハズレあり" to {_p}
+	message " <gold><i> 50万ガバス，1万ガバス，3000ガバス，300ガバス。" to {_p}
+	message " 特記事項①： くじで得た当せん金は，免税の対象となります。" to {_p}
+	message " 特記事項②： 国庫残高が50万ガバスを下回った場合，販売を中止します。" to {_p}
+
+
+
+
+
+

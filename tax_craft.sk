@@ -1,0 +1,30 @@
+# 
+
+# ■ 石と革製品クラフト税(50ガバス/回)
+
+on craft stone sword or stone shovel or stone pickaxe or stone axe or stone hoe or leather helmet or leather tunic or leather pants or leather boots:
+	remove 50 gavas from the player's money
+	message "<lime>[<white>Tax-Office<lime>] クラフト税 <yellow>50<white> Gavas 徴収しました。(石・革製品)"
+
+
+# ■ 鉄製品と弓のクラフト税(250ガバス/個)
+
+on craft iron shovel or iron pickaxe or iron axe or bow or iron sword or iron hoe or iron helmet or iron chestplate or iron leggings or iron boots:
+	remove 250 gavas from the player's money
+	message "<lime>[<white>Tax-Office<lime>] クラフト税 <yellow>250<white> Gavas 徴収しました。(鉄製品・弓)"
+
+
+# ■ 金製品クラフト税(1250ガバス/個)
+
+on craft golden sword or golden shovel or golden pickaxe or golden axe or golden hoe or golden helmet or golden chestplate or golden leggings or golden boots:
+	remove 1250 gavas from the player's money
+	message "<lime>[<white>Tax-Office<lime>] クラフト税 <yellow>1250<white> Gavas 徴収しました。(金製品)"
+
+
+# ■ ダイヤモンド製品クラフト税(5000ガバス/個)
+
+on crafting diamond sword or diamond shovel or diamond pickaxe or diamond axe or diamond hoe or diamond helmet or diamond chestplate or diamond leggings or diamond boots:
+	remove 5000 gavas from the player's money
+	message "<lime>[<white>Tax-Office<lime>] クラフト税 <yellow>5000<white> Gavas 徴収しました。(ダイヤ製品)"
+
+

@@ -1,0 +1,76 @@
+# ■ エンダーチェストサービス Version 2.0
+# 有料で，どこでもエンダーチェストを開けられるサービス。
+# なお高額。
+
+
+# 更新履歴
+# 
+# Ver.2.1　2016/02/25更新
+#　・エンダーチェストは15秒間だけしか開けないようになった。
+# Ver.2.0　2015/10/22更新
+#　・名前を指定しなければ，自分のエンダーチェストが開くようになった。
+#　・コマンドが，/enderchest だけでなく，/ec でも実行されるようになった。
+# Ver.1.0　2015/02/08更新
+#　・完成。
+
+command /enderchest <player=%player%>:
+	description: 指定したプレイヤーの画面に，自身のエンダーチェスト画面を見せます。
+	usage: /enderchest (player) ※(player)を無指定の場合，自身のエンダーチェストが開く。
+	aliases: /ec
+	trigger:
+		set {_charge} to 0
+		set {_opener} to arg 1
+		if player's y-coordinate is bigger than 60:
+			add 200 to {_charge}
+		else if player's y-coordinate is bigger than 50:
+			add 225 to {_charge}
+		else if player's y-coordinate is bigger than 40:
+			add 250 to {_charge}
+		else if player's y-coordinate is bigger than 30:
+			add 275 to {_charge}
+		else if player's y-coordinate is bigger than 20:
+			add 300 to {_charge}
+		else if player's y-coordinate is bigger than 10:
+			add 325 to {_charge}
+		else:
+			add 350 to {_charge}
+		if {_opener} isn't the player:
+			if arg 1's y-coordinate is bigger than 60:
+				add 100 to {_charge}
+			else if {_opener}'s y-coordinate is bigger than 50:
+				add 125 to {_charge}
+			else if {_opener}'s y-coordinate is bigger than 40:
+				add 150 to {_charge}
+			else if {_opener}'s y-coordinate is bigger than 30:
+				add 175 to {_charge}
+			else if {_opener}'s y-coordinate is bigger than 20:
+				add 200 to {_charge}
+			else if {_opener}'s y-coordinate is bigger than 10:
+				add 225 to {_charge}
+			else:
+				add 250 to {_charge}
+		if the player's money >= {_charge}:
+			open the player's enderchest to {_opener}		# エンダーチェストを開ける
+			remove {_charge} from the player's money
+			message "<lime>[enderchest]<white> 星井運送なの ご利用ありがとうございますなの"
+			message "<lime>[enderchest]<white> 15秒間だけ，エンダーチェストを開くことができるのの"
+			message "<lime>[enderchest]<white> 運送料として，<yellow>%{_charge}%<white> Gavas いただくの"
+			wait 10 seconds
+			message "<lime>[enderchest]<white> 残り 5 秒"
+			wait 1 seconds
+			message "<lime>[enderchest]<white> 残り 4 秒"
+			wait 1 seconds
+			message "<lime>[enderchest]<white> 残り 3 秒"
+			wait 1 seconds
+			message "<lime>[enderchest]<white> 残り 2 秒"
+			wait 1 seconds
+			message "<lime>[enderchest]<white> 残り 1 秒"
+			wait 1 seconds
+			message "<lime>[enderchest]<white> またのご利用，お待ちしておりますなの"
+			close arg 1's inventory
+		else:
+			message "<lime>[enderchest]<white> 星井運送なの お金が足りない(運送料:<red>%{_charge}%<white>Gavas)から，お荷物を運べないの"
+
+
+
+

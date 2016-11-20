@@ -1,0 +1,700 @@
+# マインクラフト版・ATOS
+# (Autonomous decentralized Transport Operation control System)
+#
+
+# 概要(未完成のものも含む)
+# ・レールの下に地上子として堅焼き粘土を置くことで，トロッコの制御を円滑にします。
+# 　①列車種別(普通，快速，…)の設定を容易にする。
+# 　②列車アナウンスを実現する。
+# 　③急行料金をとることができる。
+# 　④人身事故の防止(線路上にスポーンしたエンティティを一掃)
+# ・似たようなサーバーMODはあるけど，もう自分で作ったった。
+
+# 履歴
+# 2016/02/27 一部機能を実装。
+# ・コマンドブロックを利用した，列車アナウンス放送を実現
+# ・防護機能(何かしらのエンティティによってのトロッコ停止を防ぐ)を搭載
+# ・列車シフト機能とそれに伴ういくつかのブロックの動作変更
+# 2015/12/19 一部機能を実装。
+# ・普通，準快速，快速の各列車種別
+# ・列車種別に応じてレバーをONする機能
+# ・列車アナウンス機能(未完成)
+# ・急行料金をとる機能(10～1000ガバス)
+# 2016/01/24 一部機能を改良，種別を増やす。
+# ・普通，快速，急行，特急の各列車種別
+# －準快速は消した
+# ・列車種別に応じてレッドストーン回路を入力する機能
+# －列車種別に応じてレバーをONする機能は消した
+# ・駅通過時に急行料金をとる機能
+# －アナウンス機能はオミット中
+# 2016/06/25 トロッコの速度制限機能を追加。
+# ・最大160km/hまで対応している。これ以上は仕様上無理。
+
+
+
+
+# ■固定値
+options:
+	pass: 100			# 駅通過時にかかる追加の急行料金
+	deposit: 150 Gavas		# トロッコ下車時に手元に戻ってくるカネ
+
+aliases:
+	nored = air, rail, glass, 95:0-15, glass pane, 160:0-15
+
+
+# ■変数の初期設定
+variables:
+	{trainclass.%player%} = 0		# プレイヤーが設定している列車種別ID。
+	{trainpass.%player%} = 0		# 直前に通過した堅焼き粘土の色ID。
+	{trainpool.%player%} = 0		# 一回のトロッコ乗車で累積された料金。
+	{trainshift.%player%} = 0		# シフトブロックによってシフトされたか
+	{debug.%player%} = 0			# デバッグモードの表示
+#	{traindep.%player%} = ""		# プレイヤーの乗車位置
+
+
+# ■デバッグモード
+# 　プレイヤーが看板を右クリックすることで，
+# 　自分の乗車するトロッコの列車種別を変更できる。
+# 　駅構内に置くことを強く推奨。
+# 　なお，列車種別変更は，コマンドでも可能。
+
+command /dbg:
+	permission: sakuraft.op
+	trigger:
+		if {debug.%player%} = 0:
+			set {debug.%player%} to 1
+			message "<lime>[debug]<white> デバッグモード：入。"
+		else if {debug.%player%} = 1:
+			set {debug.%player%} to 0
+			message "<lime>[debug]<white> デバッグモード：切。"
+
+
+
+# ■ トロッコのクラフト阻止
+on craft of minecart:
+	message "<lime>[<white>manager<lime>]<white> トロッコは駅にてどうぞ。"
+	cancel event
+
+
+# ■ トロッコ下車のとき，そのトロッコは消滅する，トロッコ利用税のプール
+on exiting a vehicle:
+	player is riding a minecart
+	delete the minecart
+	remove {trainpool.%player%} from the player's money
+	message "<lime>[<white>Tax-Office<lime>] 急行料金 <yellow>%{trainpool.%player%}%<white> Gavas 徴収しました。"
+	remove {trainpool.%player%} from {trainpool.%player%}	# プールされ続けた急行料金の開放
+
+
+# ■看板
+# 　プレイヤーが看板を右クリックすることで，
+# 　自分の乗車するトロッコの列車種別を変更できる。
+# 　駅構内に置くことを強く推奨。
+# 　なお，列車種別変更は，コマンドでも可能。
+
+# □種別変更看板の設置
+on sign change:
+	# ▼1行目「atos」→「種別よいか」(クリックしても何も起こらない)
+	line 1 is "atos"
+	set line 1 to "<red><b>！ <blue>種別<black>よいか <red><b>！"
+	set line 2 to "<gray>◆◆◆◆◆◆◆◆◆◆◆◆"
+	set line 3 to "右クリックで"
+	set line 4 to "種別変更できます"
+
+
+# □種別変更看板を左クリック(すると，同効果のコマンドを発動)
+on rightclick on sign:
+	line 1 is "<red><b>！ <blue>種別<black>よいか <red><b>！"
+	# ▼特急→普通
+	if {trainclass.%player%} = 3:
+		execute player command "/local"
+		set line 3 to "<Bold>普 通"
+		set line 4 to "- Local -"
+		wait 10 seconds
+		set line 3 to "右クリックで"
+		set line 4 to "種別変更できます"
+	# ▼普通→快速
+	else if {trainclass.%player%} = 0:
+		execute player command "/rapid"
+		set line 3 to "<Blue><Bold>快 速"
+		set line 4 to "<Blue>- Rapid -"
+		wait 10 seconds
+		set line 3 to "右クリックで"
+		set line 4 to "種別変更できます"
+	# ▼快速→急行
+	else if {trainclass.%player%} = 1:
+		execute player command "/express"
+		set line 3 to "<Green><Bold>急 行"
+		set line 4 to "<Green>- Express -"
+		wait 10 seconds
+		set line 3 to "右クリックで"
+		set line 4 to "種別変更できます"
+	# ▼急行→特急
+	else if {trainclass.%player%} = 2:
+		execute player command "/limitedexpress"
+		set line 3 to "<Red><Bold>特 急"
+		set line 4 to "<Red>- Ltd. Express -"
+		wait 10 seconds
+		set line 3 to "右クリックで"
+		set line 4 to "種別変更できます"
+
+
+
+# □種別変更看板を右クリック(すると，同効果のコマンドを発動)
+on leftclick on sign:
+	line 1 is "<red><b>！ <blue>種別<black>よいか <red><b>！"
+	# ▼快速→普通
+	if {trainclass.%player%} = 1:
+		execute player command "/local"
+		set line 3 to "<Bold>普 通"
+		set line 4 to "- Local -"
+		wait 10 seconds
+		set line 3 to "右クリックで"
+		set line 4 to "種別変更できます"
+	# ▼急行→快速
+	else if {trainclass.%player%} = 2:
+		execute player command "/rapid"
+		set line 3 to "<Blue><Bold>快 速"
+		set line 4 to "<Blue>- Rapid -"
+		wait 10 seconds
+		set line 3 to "右クリックで"
+		set line 4 to "種別変更できます"
+	# ▼特急→急行
+	else if {trainclass.%player%} = 3:
+		execute player command "/express"
+		set line 3 to "<Green><Bold>急 行"
+		set line 4 to "<Green>- Express -"
+		wait 10 seconds
+		set line 3 to "右クリックで"
+		set line 4 to "種別変更できます"
+	# ▼普通→特急
+	else if {trainclass.%player%} = 0:
+		execute player command "/limitedexpress"
+		set line 3 to "<Red><Bold>特 急"
+		set line 4 to "<Red>- Ltd. Express -"
+		wait 10 seconds
+		set line 3 to "右クリックで"
+		set line 4 to "種別変更できます"
+
+
+
+# □制限速度看板の設置
+on sign change:
+	# ▼1行目「limit」→「制限速度」(クリックしても何も起こらない)
+	# ▼2行目に半角数字，10の倍数で制限速度を指定する。
+	# 　10～160 の間で対応。
+	line 1 is "limit"
+	set line 1 to "<blue><b>！ <red>制限速度 <blue><b>！"
+	set {_limit} to line 2 parsed as integer
+	set {_time} to line 3 parsed as number
+	if {_limit} isn't between 10 and 160:
+		delete the block
+		drop a sign
+		stop
+	if {_limit} is between 41 and 160:
+		if {_time} isn't set:
+			set line 3 to "10"
+		else:
+			set line 3 to {_time}
+		stop
+
+
+
+# □列車種別確認コマンド
+
+command /class:
+	permission: sakuraft.national
+	description: あなたの乗る列車列車(トロッコ)が，いまどの種別に設定されているのかを調べます。
+	trigger:
+		if {trainclass.%player%} = 0:
+			message "<lime>[atos]<white> この列車は<white><Bold>普通<Reset>です。"
+		else if {trainclass.%player%} = 1:
+			message "<lime>[atos]<white> この列車は<light cyan><Bold>快速<Reset>です。"
+		else if {trainclass.%player%} = 2:
+			message "<lime>[atos]<white> この列車は<lime><Bold>急行<Reset>です。"
+		else if {trainclass.%player%} = 3:
+			message "<lime>[atos]<white> この列車は<pink><Bold>特急<Reset>です。"
+
+
+# □列車種別変更コマンド
+
+# ▼普通
+command /local:
+	permission: sakuraft.national
+	description: 列車(トロッコ)の種別を，「普通」にします。
+	trigger:
+		set {trainclass.%player%} to 0
+		message "<lime>[atos]<white> 列車種別を<white><Bold>普通<Reset>に変更しました。"
+
+
+# ▼快速
+command /rapid:
+	permission: sakuraft.national
+	description: 列車(トロッコ)の種別を，「快速」にします。
+	trigger:
+		set {trainclass.%player%} to 1
+		message "<lime>[atos]<white> 列車種別を<light cyan><Bold>快速<Reset>に変更しました。"
+
+# ▼急行
+command /express:
+	permission: sakuraft.national
+	description: 列車(トロッコ)の種別を，「急行」にします。
+	aliases: /exp
+	trigger:
+		set {trainclass.%player%} to 2
+		message "<lime>[atos]<white> 列車種別を<lime><Bold>急行<Reset>に変更しました。"
+
+# ▼特急
+command /limitedexpress:
+	permission: sakuraft.national
+	description: 列車(トロッコ)の種別を，「特急」にします。
+	aliases: /ltd
+	trigger:
+		set {trainclass.%player%} to 3
+		message "<lime>[atos]<white> 列車種別を<pink><Bold>特急<Reset>に変更しました。"
+
+
+
+# □列車アナウンスコマンド(コマンドブロックの使用を推奨)
+
+command /announce <player> <text> <text>:
+	permission: sakuraft.national
+	aliases: /an
+	trigger:
+		message "<lime>[%arg 2%]<white> %arg 3%" to arg 1
+
+
+
+# ■(地上子？)丸石，焼石…
+# 【列車防護】
+# 　旅客列車はここを通過すると
+# 　周辺3m以内のエンティティ(プレイヤーを除く)を殺害します。
+# 　貨物列車が通過しても，何も起きません。
+on walking on Stone or Cobblestone or Grass:
+	player is riding a minecart
+	push all creatures in radius 3 around the player in the direction of the player at speed 2
+	kill all creatures in radius 3 around the player
+
+
+
+# ■(地上子)(無色の)堅焼き粘土…
+# 【旅客・貨物振り分け】
+# 　旅客列車はすべて，ここを通過すると
+# 　堅焼き粘土は2秒間だけレッドストーンブロックになります。
+# 　貨物列車が通過しても，何も起きません。
+on walking on Hardened Clay:
+	player is riding a minecart
+	wait a tick
+	set {_loc} to location at rounded down x-coordinate of player, rounded down y-coordinate of player, rounded down z-coordinate of player
+	if {debug.%player%} = 1:
+		message "<lime>[atos-debug]<white> %{_lo}%"
+	invoke "atc" from player
+	set the block at {_loc} to redstone block
+	wait 2 seconds
+	set the block at {_loc} to Hardened Clay
+
+
+
+# ■(地上子)青色の堅焼き粘土…
+# 　快速以上の旅客列車がここを通過すると
+# 　(列車シフトON時は，普通列車が通過したとき)
+# 　青色の堅焼き粘土は2秒間だけレッドストーンブロックになります。
+# 　また，この直後に黒色の堅焼き粘土の上を通ったとき，通過設定で動作します。
+on walking on Blue Stained Clay:
+	player is riding a minecart
+	wait a tick
+	set {_loc} to location at rounded down x-coordinate of player, rounded down y-coordinate of player, rounded down z-coordinate of player
+	if {debug.%player%} = 1:
+		message "<lime>[atos-debug]<white> %{_loc}%"
+	set {trainpass.%player%} to 0
+	if {trainshift.%player%} = 0:
+		if {trainclass.%player%} >= 1:
+			invoke "atc" from player
+			set the block at {_loc} to redstone block
+			wait 2 seconds
+			set the block at {_loc} to Blue Stained Clay
+	else:
+		if {trainclass.%player%} <= 0:
+			invoke "atc" from player
+			set the block at {_loc} to redstone block
+			wait 2 seconds
+			set the block at {_loc} to Blue Stained Clay
+	set {trainshift.%player%} to 0
+
+# ■(地上子)緑色の堅焼き粘土…
+# 　急行以上の旅客列車がここを通過すると
+# 　(列車シフトON時は，快速以下の列車が通過したとき)
+# 　緑色の堅焼き粘土は2秒間だけレッドストーンブロックになります。
+# 　また，この直後に黒色の堅焼き粘土の上を通ったとき，通過設定で動作します。
+on walking on Green Stained Clay:
+	player is riding a minecart
+	wait a tick
+	set {_loc} to location at rounded down x-coordinate of player, rounded down y-coordinate of player, rounded down z-coordinate of player
+	if {debug.%player%} = 1:
+		message "<lime>[atos-debug]<white> %{_loc}%"
+	set {trainpass.%player%} to 1
+	if {trainshift.%player%} = 0:
+		if {trainclass.%player%} >= 2:
+			invoke "atc" from player
+			set the block at {_loc} to redstone block
+			wait 2 seconds
+			set the block at {_loc} to Green Stained Clay
+	else:
+		if {trainclass.%player%} <= 1:
+			invoke "atc" from player
+			set the block at {_loc} to redstone block
+			wait 2 seconds
+			set the block at {_loc} to Green Stained Clay
+	set {trainshift.%player%} to 0
+
+
+# ■(地上子)赤色の堅焼き粘土…
+# 　特急以上の旅客列車がここを通過すると
+# 　(列車シフトON時は，急行以下の列車が通過したとき)
+# 　赤色の堅焼き粘土は2秒間だけレッドストーンブロックになります。
+# 　また，この直後に黒色の堅焼き粘土の上を通ったとき，通過設定で動作します。
+on walking on Red Stained Clay:
+	player is riding a minecart
+	wait a tick
+	set {_loc} to location at rounded down x-coordinate of player, rounded down y-coordinate of player, rounded down z-coordinate of player
+	if {debug.%player%} = 1:
+		message "<lime>[atos-debug]<white> %{_loc}%"
+	set {trainpass.%player%} to 2
+	if {trainshift.%player%} = 0:
+		if {trainclass.%player%} >= 3:
+			invoke "atc" from player
+			set the block at {_loc} to redstone block
+			wait 2 seconds
+			set the block at {_loc} to Red Stained Clay
+	else:
+		if {trainclass.%player%} <= 2:
+			invoke "atc" from player
+			set the block at {_loc} to redstone block
+			wait 2 seconds
+			set the block at {_loc} to Red Stained Clay
+	set {trainshift.%player%} to 0
+
+
+
+
+# ■(地上子)黒の堅焼き粘土…
+# 【旅客列車のホーム通過】
+# 　旅客列車がここを通過すると
+# 　レールから上に1マスかつ東西南北それぞれ8マスの位置にある
+# 　すべてのボタンを一度取り外して
+# 　さらに左右に隣接するブロックを、レッドストーンブロックに置き換えます。
+# 　なお、2秒後に元に戻されます。
+# 　停車／通過の判断は，黒の堅焼き粘土を通過する直前に通過した
+# 　堅焼き粘土の色によって決定されます。
+# 　・直前に青色の堅焼き粘土を通過→この先の駅を快速以上の通過駅と判断
+# 　・直前に緑色の堅焼き粘土を通過→この先の駅を急行以上の通過駅と判断
+# 　・直前に赤色の堅焼き粘土を通過→この先の駅を特急以上の通過駅と判断
+on walking on Black Stained Clay:
+	player is riding a minecart
+	wait a tick
+	if {trainclass.%player%} <= {trainpass.%player%}:
+		stop
+	# ▼課金
+	add {@pass} to {trainpool.%player%}
+	# ▼現在の座標を取得
+	set {_locG} to location at rounded down x-loc of player, rounded down y-loc of player, rounded down z-loc of player
+	# ▼原点から上に1マスかつ東西南北それぞれ8マス及びその左右の座標を取得
+	# ▽北部座標群取得
+	set {_locN} to location at rounded down x-loc of player, rounded down y-loc of player, rounded down z-loc of player
+	set z-loc of {_locN} to z-loc of {_locN} - 8
+	set y-loc of {_locN} to y-loc of {_locN} + 2
+	set {_locNL} to location at rounded down x-loc of player, rounded down y-loc of player, rounded down z-loc of player
+	set z-loc of {_locNL} to z-loc of {_locNL} - 8
+	set y-loc of {_locNL} to y-loc of {_locNL} + 2
+	set x-loc of {_locNL} to x-loc of {_locNL} - 1
+	set {_locNR} to location at rounded down x-loc of player, rounded down y-loc of player, rounded down z-loc of player
+	set z-loc of {_locNR} to z-loc of {_locNR} - 8
+	set y-loc of {_locNR} to y-loc of {_locNR} + 2
+	set x-loc of {_locNR} to x-loc of {_locNR} + 1
+	if the block at {_locN} = wooden button:
+		set the block at {_locN} to air
+		if the block at {_locNL} != nored:
+			set the block at {_locG} to the block at {_locNL}
+			set the block at {_locNL} to redstone block
+			wait 2 seconds
+			set the block at {_locNL} to the block at {_locG}
+			set the block at {_locG} to Black Stained Clay
+		else if the block at {_locNR} != nored:
+			set the block at {_locG} to the block at {_locNR}
+			set the block at {_locNR} to redstone block
+			wait 2 seconds
+			set the block at {_locNR} to the block at {_locG}
+			set the block at {_locG} to Black Stained Clay
+		set the block at {_locN} to wooden button off
+		stop
+	else if the block at {_locN} = stone button:
+		set the block at {_locN} to air
+		if the block at {_locNL} != nored:
+			set the block at {_locG} to the block at {_locNL}
+			set the block at {_locNL} to redstone block
+			wait 2 seconds
+			set the block at {_locNL} to the block at {_locG}
+			set the block at {_locG} to Black Stained Clay
+		else if the block at {_locNR} != nored:
+			set the block at {_locG} to the block at {_locNR}
+			set the block at {_locNR} to redstone block
+			wait 2 seconds
+			set the block at {_locNR} to the block at {_locG}
+			set the block at {_locG} to Black Stained Clay
+		set the block at {_locN} to stone button off
+		stop
+	# ▽東部座標群取得
+	set {_locE} to location at rounded down x-loc of player, rounded down y-loc of player, rounded down z-loc of player
+	set x-loc of {_locE} to x-loc of {_locE} + 8
+	set y-loc of {_locE} to y-loc of {_locE} + 2
+	set {_locEL} to location at rounded down x-loc of player, rounded down y-loc of player, rounded down z-loc of player
+	set x-loc of {_locEL} to x-loc of {_locEL} + 8
+	set y-loc of {_locEL} to y-loc of {_locEL} + 2
+	set z-loc of {_locEL} to z-loc of {_locEL} - 1
+	set {_locER} to location at rounded down x-loc of player, rounded down y-loc of player, rounded down z-loc of player
+	set x-loc of {_locER} to x-loc of {_locER} + 8
+	set y-loc of {_locER} to y-loc of {_locER} + 2
+	set z-loc of {_locER} to z-loc of {_locER} + 1
+	if the block at {_locE} = wooden button:
+		set the block at {_locE} to air
+		if the block at {_locEL} != nored:
+			set the block at {_locG} to the block at {_locEL}
+			set the block at {_locEL} to redstone block
+			wait 2 seconds
+			set the block at {_locEL} to the block at {_locG}
+			set the block at {_locG} to Black Stained Clay
+		else if the block at {_locER} != nored:
+			set the block at {_locG} to the block at {_locER}
+			set the block at {_locER} to redstone block
+			wait 2 seconds
+			set the block at {_locER} to the block at {_locG}
+			set the block at {_locG} to Black Stained Clay
+		set the block at {_locE} to wooden button off
+		stop
+	else if the block at {_locE} = stone button:
+		set the block at {_locE} to air
+		if the block at {_locEL} != nored:
+			set the block at {_locG} to the block at {_locEL}
+			set the block at {_locEL} to redstone block
+			wait 2 seconds
+			set the block at {_locEL} to the block at {_locG}
+			set the block at {_locG} to Black Stained Clay
+		else if the block at {_locER} != nored:
+			set the block at {_locG} to the block at {_locER}
+			set the block at {_locER} to redstone block
+			wait 2 seconds
+			set the block at {_locER} to the block at {_locG}
+			set the block at {_locG} to Black Stained Clay
+		set the block at {_locE} to stone button off
+		stop
+	# ▽西部座標群取得
+	set {_locW} to location at rounded down x-loc of player, rounded down y-loc of player, rounded down z-loc of player
+	set x-loc of {_locW} to x-loc of {_locW} - 8
+	set y-loc of {_locW} to y-loc of {_locW} + 2
+	set {_locWL} to location at rounded down x-loc of player, rounded down y-loc of player, rounded down z-loc of player
+	set x-loc of {_locWL} to x-loc of {_locWL} - 8
+	set y-loc of {_locWL} to y-loc of {_locWL} + 2
+	set z-loc of {_locWL} to z-loc of {_locWL} + 1
+	set {_locWR} to location at rounded down x-loc of player, rounded down y-loc of player, rounded down z-loc of player
+	set x-loc of {_locWR} to x-loc of {_locWR} - 8
+	set y-loc of {_locWR} to y-loc of {_locWR} + 2
+	set z-loc of {_locWR} to z-loc of {_locWR} - 1
+	if the block at {_locW} = wooden button:
+		set the block at {_locW} to air
+		if the block at {_locWL} != nored:
+			set the block at {_locG} to the block at {_locWL}
+			set the block at {_locWL} to redstone block
+			wait 2 seconds
+			set the block at {_locWL} to the block at {_locG}
+			set the block at {_locG} to Black Stained Clay
+		else if the block at {_locWR} != nored:
+			set the block at {_locG} to the block at {_locWR}
+			set the block at {_locWR} to redstone block
+			wait 2 seconds
+			set the block at {_locWR} to the block at {_locG}
+			set the block at {_locG} to Black Stained Clay
+		set the block at {_locW} to wooden button off
+		stop
+	else if the block at {_locW} = stone button:
+		set the block at {_locW} to air
+		if the block at {_locWL} != nored:
+			set the block at {_locG} to the block at {_locWL}
+			set the block at {_locWL} to redstone block
+			wait 2 seconds
+			set the block at {_locWL} to the block at {_locG}
+			set the block at {_locG} to Black Stained Clay
+		else if the block at {_locWR} != nored:
+			set the block at {_locG} to the block at {_locWR}
+			set the block at {_locWR} to redstone block
+			wait 2 seconds
+			set the block at {_locWR} to the block at {_locG}
+			set the block at {_locG} to Black Stained Clay
+		set the block at {_locW} to stone button off
+		stop
+	# ▽南部座標群取得
+	set {_locS} to location at rounded down x-loc of player, rounded down y-loc of player, rounded down z-loc of player
+	set z-loc of {_locS} to z-loc of {_locS} + 8
+	set y-loc of {_locS} to y-loc of {_locS} + 2
+	set {_locSL} to location at rounded down x-loc of player, rounded down y-loc of player, rounded down z-loc of player
+	set z-loc of {_locSL} to z-loc of {_locSL} + 8
+	set y-loc of {_locSL} to y-loc of {_locSL} + 2
+	set x-loc of {_locSL} to x-loc of {_locSL} + 1
+	set {_locSR} to location at rounded down x-loc of player, rounded down y-loc of player, rounded down z-loc of player
+	set z-loc of {_locSR} to z-loc of {_locSR} + 8
+	set y-loc of {_locSR} to y-loc of {_locSR} + 2
+	set x-loc of {_locSR} to x-loc of {_locSR} - 1
+	if the block at {_locS} = wooden button:
+		set the block at {_locS} to air
+		if the block at {_locSL} != nored:
+			set the block at {_locG} to the block at {_locSL}
+			set the block at {_locSL} to redstone block
+			wait 2 seconds
+			set the block at {_locSL} to the block at {_locG}
+			set the block at {_locG} to Black Stained Clay
+		else if the block at {_locSR} != nored:
+			set the block at {_locG} to the block at {_locSR}
+			set the block at {_locSR} to redstone block
+			wait 2 seconds
+			set the block at {_locSR} to the block at {_locG}
+			set the block at {_locG} to Black Stained Clay
+		set the block at {_locS} to wooden button off
+		stop
+	else if the block at {_locS} = stone button:
+		set the block at {_locS} to air
+		if the block at {_locSL} != nored:
+			set the block at {_locG} to the block at {_locSL}
+			set the block at {_locSL} to redstone block
+			wait 2 seconds
+			set the block at {_locSL} to the block at {_locG}
+			set the block at {_locG} to Black Stained Clay
+		else if the block at {_locSR} != nored:
+			set the block at {_locG} to the block at {_locSR}
+			set the block at {_locSR} to redstone block
+			wait 2 seconds
+			set the block at {_locSR} to the block at {_locG}
+			set the block at {_locG} to Black Stained Clay
+		set the block at {_locS} to stone button off
+		stop
+
+
+
+
+
+# ■(地上子)水色・黄色・桃色の堅焼き粘土…
+# 　急行料金と称し，プレイヤーからトロッコ利用料を
+# 　規定のガバスを追加徴収します。
+# 　(黄緑色，橙色は廃止)
+# ▼水色→10ガバス。(列車シフトON時は，50ガバス)
+on walking on light blue Stained Clay:
+	player is riding a minecart
+	wait a tick
+	if {trainshift.%player%} = 0:
+		add 10 gavas to {trainpool.%player%}
+	else:
+		add 50 gavas to {trainpool.%player%}
+	set {trainshift.%player%} to 0
+
+# ▼黄色→100ガバス。(列車シフトON時は，500ガバス)
+on walking on yellow Stained Clay:
+	player is riding a minecart
+	wait a tick
+	if {trainshift.%player%} = 0:
+		add 100 gavas to {trainpool.%player%}
+	else:
+		add 500 gavas to {trainpool.%player%}
+	set {trainshift.%player%} to 0
+
+# ▼桃色→1000ガバス。(列車シフトON時は，5000ガバス)
+on walking on pink Stained Clay:
+	player is riding a minecart
+	wait a tick
+	if {trainshift.%player%} = 0:
+		add 1000 gavas to {trainpool.%player%}
+	else:
+		add 5000 gavas to {trainpool.%player%}
+	set {trainshift.%player%} to 0
+
+
+# ■(地上子)白色の堅焼き粘土…
+# 　列車シフトブロック
+# 　ほかの地上子の手前にこのブロックを置くと
+# 　次の地上子に(機能があれば)特殊な動作をさせます。(そしてシフトoffにする)
+on walking on White Stained Clay:
+	player is riding a minecart
+	wait a tick
+	if {trainshift.%player%} = 0:
+		set {trainshift.%player%} to 1
+	Else:
+		set {trainshift.%player%} to 0
+
+
+
+# ■(サブルーチン)制限速度設定，ATC…
+# 　プレイヤーから半径5m以内にある制限速度看板を検知し，トロッコの制限速度を設定します。
+# 　・制限速度看板が複数個見つかった場合には，その中でもっとも数値の小さいものに設定します。
+# 　プレイヤーの乗るトロッコの現在速度が，制限速度を超えていた場合は，ATCが作動します。
+# 　・トロッコの速度が制限速度まで自動で下がります。
+# 　・トロッコの現在速度が，制限速度を下回っていても，加速はしません。
+# 　・ATC作動中に，別のブロック上で別の制限速度看板を検知しても，無視されます。
+sub "atc":
+	set {_atcp} to parameter-1		# {_atcp}とは，プレイヤー名
+	if {atclock.%{_atcp}%} is true:		# ほかのATCコマンドが有効なとき，ほかのATCコマンドを受け付けない。
+#		message "ATCロック中" to {_atcp}
+		stop
+	set {atclock.%{_atcp}%} to true
+	set {_atcc} to 9999
+	loop blocks in radius 5 around {_atcp}:
+		loop-block is sign
+		line 1 of loop-block is "<blue><b>！ <red>制限速度 <blue><b>！"
+		set {_atcl} to line 2 of loop-block parsed as number	# 変数の型を数値型に変えている
+		set {_time} to line 3 of loop-block parsed as number	# {_time}は，スピードを維持する秒数
+		if {_time} isn't set:
+			set {_time} to 0
+#		message "認識：%{_atcl}% (現状：%{_atcc}%)" to {_atcp}
+		if {_atcl} < {_atcc}:
+#			message "上書き" to {_atcp}
+			set {_atcc} to {_atcl}
+#	message "結果：%{_atcc}%" to {_atcp}
+	if {_atcc} > 1000:
+#		message "抜けた" to {_atcp}
+		set {atclock.%{_atcp}%} to false
+		stop
+	set {_atccn} to {_atcc} / 100
+	set {_atcn} to {_atcp}'s vehicle's maximum minecart speed		# たった今のトロッコ最高速度
+#	message "制限速度：%{_atccn}% 現在速度：%{_atcn}%" to {_atcp}
+	# 現在の設定最高速度が制限速度に達していない場合は，制限速度を徐々に引き上げる。
+	while {_atccn} > {_atcn}:
+		if {_atcp} isn't riding a minecart:
+#			message "降りた" to {_atcp}
+			set {atclock.%{_atcp}%} to false
+			stop
+		set {_atcp}'s vehicle's maximum minecart speed to {_atcn} + 0.05
+		set {_atcn} to {_atcp}'s vehicle's maximum minecart speed
+		set {_atcnh} to {_atcn} * 100
+#		message "%{_atcn}%" to {_atcp}
+		set action bar of {_atcp} to "<red><b>≪ <r>ATC作動 <b> %{_atcnh}% km/h <red><b>≫"
+		wait 0.1 second
+	# 現在の設定最高速度が制限速度に達している場合は，制限速度を徐々に引き下げる(ATC作動)
+	while {_atccn} < {_atcn}:
+		if {_atcp} isn't riding a minecart:
+#			message "降りた" to {_atcp}
+			set {atclock.%{_atcp}%} to false
+			stop
+		set {_atcp}'s vehicle's maximum minecart speed to {_atcn} - 0.05
+		set {_atcn} to {_atcp}'s vehicle's maximum minecart speed
+		set {_atcnh} to {_atcn} * 100
+#		message "%{_atcn}%" to {_atcp}
+		set action bar of {_atcp} to "<red><b>≪ <r>ATC作動 <b> %{_atcnh}% km/h <red><b>≫"
+		wait 0.1 second
+#	message "ATCロック解除" to {_atcp}
+	wait {_time} second	# 指定秒数待つ
+	set {atclock.%{_atcp}%} to false
+
+
+
+# ■(コマンド)ATCロック解除…
+# 　ATCがうまくはたらかないときの緊急コマンドです。
+command /delatclock:
+	trigger:
+		set {atclock.%player%} to false
+		message "<lime>[atos]<white> ATCロックを解除しました。"
+

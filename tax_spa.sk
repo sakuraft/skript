@@ -1,0 +1,318 @@
+# ¡‰·òƒXƒNƒŠƒvƒg
+
+# ŠÅ”Âİ’uC1s–Ú‚É"spa"‚Æ“ü‚ê‚é‚Æ‰·ò‚Ìí•Ê‚ğ©“®İ’è
+
+on sign change:				#ŠÅ”Â‚ğ•ÒW‚µ‚½’¼Œã‚Éc
+	If line 1 is "‰·ò":
+		cancel the event
+	If line 1 is "<White>‰·ò":
+		cancel the event
+	If line 1 is "spa":		#1s–Ú‚Éuspav‚Æ‘‚¢‚Ä‚ ‚é‚Æ‚«
+		set line 1 to "<White>‰·ò"
+		set line 3 to ""
+		set line 4 to "“ü“’—¿ 20 Gavas"
+		set {_kounou} to random integer from 0 to 11
+		if {_kounou} = 0:
+			set line 2 to "<Yellow><Bold>‚º‚©‚Ü‚µ‚Ì“’"	#ˆÚ“®‘¬“xã¸
+		else if {_kounou} = 1:
+			set line 2 to "<Yellow><Bold>á•à‚Ì“’"		#ÌŒ@‘¬“xã¸
+		else if {_kounou} = 2:
+			set line 2 to "<Yellow><Bold>–¶‰J‚Ì“’"		#UŒ‚—Íã¸
+		else if {_kounou} = 3:
+			set line 2 to "<Yellow><Bold>ƒoƒPƒc‚Ì“’"	#‘¦‰ñ•œ
+		else if {_kounou} = 4:
+			set line 2 to "<Yellow><Bold>”—í‚Ì“’"		#’µ–ô—Íã¸
+		else if {_kounou} = 5:
+			set line 2 to "<Yellow><Bold>‰‰¹‚Ì“’"		#Ä¶”\—Í
+		else if {_kounou} = 6:
+			set line 2 to "<Yellow><Bold>Œ‹ŠE‚Ì“’"		#ƒ_ƒ[ƒW‘Ï«
+		else if {_kounou} = 7:
+			set line 2 to "<Yellow><Bold>C‘¢‚Ì“’"		#‰Î‰Š‘Ï«
+		else if {_kounou} = 8:
+			set line 2 to "<Yellow><Bold>ˆÉ401‚Ì“’"		#Ä¶”\—Í
+		else if {_kounou} = 9:
+			set line 2 to "<Yellow><Bold>Â—t‚Ì“’"		#Ä¶”\—Í
+		else if {_kounou} = 10:
+			set line 2 to "<Yellow><Bold>‚²‚Ü‚¾‚ê`‚Ì“’"	#Ä¶”\—Í
+		else if {_kounou} = 11:
+			set line 2 to "<Yellow><Bold>ç‘‚Ì“’"		#Ä¶”\—Í
+
+
+# ‰·ò‚ÌŠÅ”Â‚ğ‰EƒNƒŠƒbƒN‚µ‚½‚Æ‚«Œø‰Ê”­“®
+
+on rightclick:
+	#
+	# ‘O’ñ
+	#
+	block is a sign					#(‰EƒNƒŠƒbƒN‚µ‚½)ƒuƒƒbƒN‚ÍŠÅ”Â‚Å‚·
+	the block at the player is a water		#ƒvƒŒƒCƒ„[‚Ì‚¢‚éƒuƒƒbƒN‚Í…‚Å‚·
+	line 1 of clicked block is "<White>‰·ò"	#(‰EƒNƒŠƒbƒN‚µ‚½)ƒuƒƒbƒN‚Ì1s–Ú‚É‚Íu<White>‰·òv‚Æ‚ ‚é
+	If the player's money <= 19:		#ƒvƒŒƒCƒ„[‚ÌŠ‹à‚ª20ƒKƒoƒXˆÈã‚Å‚ ‚é
+		message "<lime>[spa]<white> ‘‹à‚ª‘«‚è‚Ü‚¹‚ñ <white> “ü“’Å‚Í <yellow>20<white> Gavas •K—v‚Å‚·"
+		exit
+	#
+	# “ü“’Å‚Í•¥‚Á‚Ä’¸‚±‚¤
+	#
+	remove 20 from the player's money
+	message "<lime>[spa]<white> “ü“’Å <yellow>20<white> Gavas ‚ğx•¥‚Á‚½"
+	#
+	# ‚·‚Å‚É‚©‚©‚Á‚Ä‚¢‚éƒ|[ƒVƒ‡ƒ“Œø‰Ê‚ğ(ˆ««‚àŠÜ‚ñ‚Å)‘Å‚¿Á‚·
+	#
+	remove speed from the player
+	remove slowness from the player
+	remove haste from the player
+	remove mining fatigue from the player
+	remove strength from the player
+	remove instant health from the player
+	remove instant damage from the player
+	remove jump boost from the player
+	remove nausea from the player
+	remove regeneration from the player
+	remove resistance from the player
+	remove fire resistance from the player
+	remove water breathing from the player
+	remove invisibility from the player
+	remove blindness from the player
+	remove night vision from the player
+	remove weakness from the player
+	remove poison from the player
+	remove wither from the player
+	remove fast digging from the player
+	remove Health Boost from the player
+	remove Absorption from the player
+	remove Saturation from the player
+	#
+	# “’‚ ‚½‚è”»’è(“’‚ ‚½‚è‚·‚é‚Æ‰·ò‚ÌŒø‰Ê‚ª“¾‚ç‚ê‚È‚¢)
+	#
+	chance of 5%:
+		apply nausea 1 to the player for 30 seconds
+		set the player's food level to 0
+		message " <pink> –‚¨‚¨‚Á‚Æ–<white> “’‚ ‚½‚è‚µ‚Ä‚µ‚Ü‚Á‚½I"
+		exit
+	#
+	# ‰·ò‚ÌŒø”\‚ğ•t—^‚·‚é
+	#
+	if line 2 of clicked block is "<Yellow><Bold>‚º‚©‚Ü‚µ‚Ì“’":
+		message " <white> ‰·ò‚ÌŒø”\‚É‚æ‚Á‚ÄCˆÚ“®‘¬“x‚ªã¸‚µ‚½"
+		if player's y-coordinate is bigger than 250:		#Y250`
+			apply speed 5 to the player for 1500 seconds
+		else if player's y-coordinate is bigger than 200:	#Y200`
+			apply speed 4 to the player for 1200 seconds
+		else if player's y-coordinate is bigger than 150:	#Y150`
+			apply speed 3 to the player for 900 seconds
+		else if player's y-coordinate is bigger than 100:	#Y100`
+			apply speed 2 to the player for 600 seconds
+		else if player's y-coordinate is bigger than 50:	#Y 50`(ƒfƒtƒHƒ‹ƒg)
+			apply speed 1 to the player for 300 seconds
+		else if player's y-coordinate is bigger than 40:	#Y 40`
+			apply speed 3 to the player for 150 seconds
+		else if player's y-coordinate is bigger than 25:	#Y 25`
+			apply speed 5 to the player for 100 seconds
+		else if player's y-coordinate is bigger than 10:	#Y 10`
+			apply speed 7 to the player for 75 seconds
+		else:							#Y  0`
+			apply speed 9 to the player for 60 seconds
+	else if line 2 of clicked block is "<Yellow><Bold>á•à‚Ì“’":
+		message " <white> ‰·ò‚ÌŒø”\‚É‚æ‚Á‚ÄCÌŒ@‘¬“x‚ªã¸‚µ‚½"
+		if player's y-coordinate is bigger than 250:		#Y250`
+			apply fast digging 5 to the player for 1500 seconds
+		else if player's y-coordinate is bigger than 200:	#Y200`
+			apply fast digging 4 to the player for 1200 seconds
+		else if player's y-coordinate is bigger than 150:	#Y150`
+			apply fast digging 3 to the player for 900 seconds
+		else if player's y-coordinate is bigger than 100:	#Y100`
+			apply fast digging 2 to the player for 600 seconds
+		else if player's y-coordinate is bigger than 50:	#Y 50`(ƒfƒtƒHƒ‹ƒg)
+			apply fast digging 1 to the player for 300 seconds
+		else if player's y-coordinate is bigger than 40:	#Y 40`
+			apply fast digging 3 to the player for 150 seconds
+		else if player's y-coordinate is bigger than 25:	#Y 25`
+			apply fast digging 5 to the player for 100 seconds
+		else if player's y-coordinate is bigger than 10:	#Y 10`
+			apply fast digging 7 to the player for 75 seconds
+		else:							#Y  0`
+			apply fast digging 9 to the player for 60 seconds
+	else if line 2 of clicked block is "<Yellow><Bold>–¶‰J‚Ì“’":
+		message " <white> ‰·ò‚ÌŒø”\‚É‚æ‚Á‚ÄCUŒ‚—Í‚ªã¸‚µ‚½"
+		if player's y-coordinate is bigger than 250:		#Y250`
+			apply strength 5 to the player for 1500 seconds
+		else if player's y-coordinate is bigger than 200:	#Y200`
+			apply strength 4 to the player for 1200 seconds
+		else if player's y-coordinate is bigger than 150:	#Y150`
+			apply strength 3 to the player for 900 seconds
+		else if player's y-coordinate is bigger than 100:	#Y100`
+			apply strength 2 to the player for 600 seconds
+		else if player's y-coordinate is bigger than 50:	#Y 50`(ƒfƒtƒHƒ‹ƒg)
+			apply strength 1 to the player for 300 seconds
+		else if player's y-coordinate is bigger than 40:	#Y 40`
+			apply strength 3 to the player for 150 seconds
+		else if player's y-coordinate is bigger than 25:	#Y 25`
+			apply strength 5 to the player for 100 seconds
+		else if player's y-coordinate is bigger than 10:	#Y 10`
+			apply strength 7 to the player for 75 seconds
+		else:							#Y  0`
+			apply strength 9 to the player for 60 seconds
+	else if line 2 of clicked block is "<Yellow><Bold>ƒoƒPƒc‚Ì“’":
+		message " <white> ‰·ò‚ÌŒø”\‚É‚æ‚Á‚ÄC‘¦‰ñ•œ‚µ‚½"
+		apply instant health 1 to the player
+	else if line 2 of clicked block is "<Yellow><Bold>”—í‚Ì“’":
+		message " <white> ‰·ò‚ÌŒø”\‚É‚æ‚Á‚ÄCƒWƒƒƒ“ƒv—Í‚ªã¸‚µ‚½"
+		if player's y-coordinate is bigger than 250:		#Y250`
+			apply jump boost 11 to the player for 1500 seconds
+		else if player's y-coordinate is bigger than 200:	#Y200`
+			apply jump boost 7 to the player for 1200 seconds
+		else if player's y-coordinate is bigger than 150:	#Y150`
+			apply jump boost 5 to the player for 900 seconds
+		else if player's y-coordinate is bigger than 100:	#Y100`
+			apply jump boost 3 to the player for 600 seconds
+		else if player's y-coordinate is bigger than 50:	#Y 50`(ƒfƒtƒHƒ‹ƒg)
+			apply jump boost 2 to the player for 300 seconds
+		else if player's y-coordinate is bigger than 40:	#Y 40`
+			apply jump boost 5 to the player for 150 seconds
+		else if player's y-coordinate is bigger than 25:	#Y 25`
+			apply jump boost 11 to the player for 100 seconds
+		else if player's y-coordinate is bigger than 10:	#Y 10`
+			apply jump boost 17 to the player for 75 seconds
+		else:							#Y  0`
+			apply jump boost 23 to the player for 60 seconds
+	else if line 2 of clicked block is "<Yellow><Bold>‰‰¹‚Ì“’":
+		message " <white> ‰·ò‚ÌŒø”\‚É‚æ‚Á‚ÄC‘Ì—ÍÄ¶”\—Í‚ğ“¾‚½"
+		if player's y-coordinate is bigger than 250:		#Y250`
+			apply regeneration 5 to the player for 225 seconds
+		else if player's y-coordinate is bigger than 200:	#Y200`
+			apply regeneration 4 to the player for 180 seconds
+		else if player's y-coordinate is bigger than 150:	#Y150`
+			apply regeneration 3 to the player for 135 seconds
+		else if player's y-coordinate is bigger than 100:	#Y100`
+			apply regeneration 2 to the player for 90 seconds
+		else if player's y-coordinate is bigger than 50:	#Y 50`(ƒfƒtƒHƒ‹ƒg)
+			apply regeneration 1 to the player for 45 seconds
+		else if player's y-coordinate is bigger than 40:	#Y 40`
+			apply regeneration 3 to the player for 60 seconds
+		else if player's y-coordinate is bigger than 25:	#Y 25`
+			apply regeneration 5 to the player for 75 seconds
+		else if player's y-coordinate is bigger than 10:	#Y 10`
+			apply regeneration 7 to the player for 90 seconds
+		else:							#Y  0`
+			apply regeneration 9 to the player for 115 seconds
+	else if line 2 of clicked block is "<Yellow><Bold>Œ‹ŠE‚Ì“’":
+		message " <white> ‰·ò‚ÌŒø”\‚É‚æ‚Á‚ÄCƒ_ƒ[ƒW‘Ï«‚ğ“¾‚½"
+		if player's y-coordinate is bigger than 250:		#Y250`
+			apply resistance 5 to the player for 1500 seconds
+		else if player's y-coordinate is bigger than 200:	#Y200`
+			apply resistance 4 to the player for 1200 seconds
+		else if player's y-coordinate is bigger than 150:	#Y150`
+			apply resistance 3 to the player for 900 seconds
+		else if player's y-coordinate is bigger than 100:	#Y100`
+			apply resistance 2 to the player for 600 seconds
+		else if player's y-coordinate is bigger than 50:	#Y 50`(ƒfƒtƒHƒ‹ƒg)
+			apply resistance 1 to the player for 300 seconds
+		else if player's y-coordinate is bigger than 40:	#Y 40`
+			apply resistance 3 to the player for 150 seconds
+		else if player's y-coordinate is bigger than 25:	#Y 25`
+			apply resistance 5 to the player for 100 seconds
+		else if player's y-coordinate is bigger than 10:	#Y 10`
+			apply resistance 7 to the player for 75 seconds
+		else:							#Y  0`
+			apply resistance 9 to the player for 60 seconds
+	else if line 2 of clicked block is "<Yellow><Bold>C‘¢‚Ì“’":
+		message " <white> ‰·ò‚ÌŒø”\‚É‚æ‚Á‚ÄC‰Î‰Š‘Ï«‚ğ“¾‚½"
+		if player's y-coordinate is bigger than 250:		#Y250`
+			apply fire resistance 5 to the player for 1500 seconds
+		else if player's y-coordinate is bigger than 200:	#Y200`
+			apply fire resistance 4 to the player for 1200 seconds
+		else if player's y-coordinate is bigger than 150:	#Y150`
+			apply fire resistance 3 to the player for 900 seconds
+		else if player's y-coordinate is bigger than 100:	#Y100`
+			apply fire resistance 2 to the player for 600 seconds
+		else if player's y-coordinate is bigger than 50:	#Y 50`(ƒfƒtƒHƒ‹ƒg)
+			apply fire resistance 1 to the player for 300 seconds
+		else if player's y-coordinate is bigger than 40:	#Y 40`
+			apply fire resistance 3 to the player for 150 seconds
+		else if player's y-coordinate is bigger than 25:	#Y 25`
+			apply fire resistance 5 to the player for 100 seconds
+		else if player's y-coordinate is bigger than 10:	#Y 10`
+			apply fire resistance 7 to the player for 75 seconds
+		else:							#Y  0`
+			apply fire resistance 9 to the player for 60 seconds
+	else if line 2 of clicked block is "<Yellow><Bold>ˆÉ401‚Ì“’":
+		message " <white> ‰·ò‚ÌŒø”\‚É‚æ‚Á‚ÄC…’†”\—Í‚ğ“¾‚½"
+		if player's y-coordinate is bigger than 250:		#Y250`
+			apply water breathing 5 to the player for 1500 seconds
+		else if player's y-coordinate is bigger than 200:	#Y200`
+			apply water breathing 4 to the player for 1200 seconds
+		else if player's y-coordinate is bigger than 150:	#Y150`
+			apply water breathing 3 to the player for 900 seconds
+		else if player's y-coordinate is bigger than 100:	#Y100`
+			apply water breathing 2 to the player for 600 seconds
+		else if player's y-coordinate is bigger than 50:	#Y 50`(ƒfƒtƒHƒ‹ƒg)
+			apply water breathing 1 to the player for 300 seconds
+		else if player's y-coordinate is bigger than 40:	#Y 40`
+			apply water breathing 3 to the player for 150 seconds
+		else if player's y-coordinate is bigger than 25:	#Y 25`
+			apply water breathing 5 to the player for 100 seconds
+		else if player's y-coordinate is bigger than 10:	#Y 10`
+			apply water breathing 7 to the player for 75 seconds
+		else:							#Y  0`
+			apply water breathing 9 to the player for 60 seconds
+	else if line 2 of clicked block is "<Yellow><Bold>Â—t‚Ì“’":
+		message " <white> ‰·ò‚ÌŒø”\‚É‚æ‚Á‚ÄCˆÃ‹”\—Í‚ğ“¾‚½"
+		if player's y-coordinate is bigger than 250:		#Y250`
+			apply night vision 5 to the player for 1500 seconds
+		else if player's y-coordinate is bigger than 200:	#Y200`
+			apply night vision 4 to the player for 1200 seconds
+		else if player's y-coordinate is bigger than 150:	#Y150`
+			apply night vision 3 to the player for 900 seconds
+		else if player's y-coordinate is bigger than 100:	#Y100`
+			apply night vision 2 to the player for 600 seconds
+		else if player's y-coordinate is bigger than 50:	#Y 50`(ƒfƒtƒHƒ‹ƒg)
+			apply night vision 1 to the player for 300 seconds
+		else if player's y-coordinate is bigger than 40:	#Y 40`
+			apply night vision 3 to the player for 150 seconds
+		else if player's y-coordinate is bigger than 25:	#Y 25`
+			apply night vision 5 to the player for 100 seconds
+		else if player's y-coordinate is bigger than 10:	#Y 10`
+			apply night vision 7 to the player for 75 seconds
+		else:							#Y  0`
+			apply night vision 9 to the player for 60 seconds
+	else if line 2 of clicked block is "<Yellow><Bold>‚²‚Ü‚¾‚ê`‚Ì“’":
+		message " <white> ‰·ò‚ÌŒø”\‚É‚æ‚Á‚ÄCŠî‘b‘Ì—Í‚ª‘‚¦‚½"
+		if player's y-coordinate is bigger than 250:		#Y250`
+			apply Health Boost 5 to the player for 1500 seconds
+		else if player's y-coordinate is bigger than 200:	#Y200`
+			apply Health Boost 4 to the player for 1200 seconds
+		else if player's y-coordinate is bigger than 150:	#Y150`
+			apply Health Boost 3 to the player for 900 seconds
+		else if player's y-coordinate is bigger than 100:	#Y100`
+			apply Health Boost 2 to the player for 600 seconds
+		else if player's y-coordinate is bigger than 50:	#Y 50`(ƒfƒtƒHƒ‹ƒg)
+			apply Health Boost 1 to the player for 300 seconds
+		else if player's y-coordinate is bigger than 40:	#Y 40`
+			apply Health Boost 3 to the player for 150 seconds
+		else if player's y-coordinate is bigger than 25:	#Y 25`
+			apply Health Boost 5 to the player for 100 seconds
+		else if player's y-coordinate is bigger than 10:	#Y 10`
+			apply Health Boost 7 to the player for 75 seconds
+		else:							#Y  0`
+			apply Health Boost 9 to the player for 60 seconds
+	else if line 2 of clicked block is "<Yellow><Bold>ç‘‚Ì“’":
+		message " <white> ‰·ò‚ÌŒø”\‚É‚æ‚Á‚ÄCŠÉÕ‘Ì—Í‚ª‘‚¦‚½"
+		if player's y-coordinate is bigger than 250:		#Y250`
+			apply Absorption 5 to the player for 1500 seconds
+		else if player's y-coordinate is bigger than 200:	#Y200`
+			apply Absorption 4 to the player for 1200 seconds
+		else if player's y-coordinate is bigger than 150:	#Y150`
+			apply Absorption 3 to the player for 900 seconds
+		else if player's y-coordinate is bigger than 100:	#Y100`
+			apply Absorption 2 to the player for 600 seconds
+		else if player's y-coordinate is bigger than 50:	#Y 50`(ƒfƒtƒHƒ‹ƒg)
+			apply Absorption 1 to the player for 300 seconds
+		else if player's y-coordinate is bigger than 40:	#Y 40`
+			apply Absorption 3 to the player for 150 seconds
+		else if player's y-coordinate is bigger than 25:	#Y 25`
+			apply Absorption 5 to the player for 100 seconds
+		else if player's y-coordinate is bigger than 10:	#Y 10`
+			apply Absorption 7 to the player for 75 seconds
+		else:							#Y  0`
+			apply Absorption 9 to the player for 60 seconds
+

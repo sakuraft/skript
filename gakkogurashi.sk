@@ -1,0 +1,140 @@
+# ■ 特効装備スクリプト　　　　　　　　　　　　 ■ #
+# ■ gakkogurashi.sk　ver.0.2　　　　　　　　　 ■ #
+# ■ 　　　　　 by Kasumi Juzo (sakraft server) ■ #
+
+# 概要：
+# 　アニメ「がっこうぐらし！」に着想を得たskriptです。
+# 　次の道具で特定の敵対Mobを攻撃すると，道具の耐久値が多めにとられるのと引き替えに
+# 　敵対Mobへのダメージが通常よりもダメージが高くなります。
+#
+# 　・シャベル → ゾンビ特効，ゾンビピッグマン特効
+# 　・は さ み → クリーパー特効
+# 　・ク　　ワ → エンダーマン特効
+# 　・　 斧 　 → クモ特効，洞窟グモ特効
+# 　・ピッケル → スケルトン特効，ウィザースケルトン特効
+#
+# 　また，敵対Mobは，はるか遠くに吹っ飛んでいきます。
+# 　
+# 　初期設定は以下の通り
+# 　【与ダメージ】
+# 　　・木の○○…………………(与ダメージ)敵対Mobの半分 (道具損傷)5
+# 　　・石の○○…………………(与ダメージ)敵対Mobの全部 (道具損傷)5
+# 　　・鉄の○○…………………(与ダメージ)敵対Mobの全部 (道具損傷)4
+# 　　・金の○○…………………(与ダメージ)敵対Mobの全部 (道具損傷)3
+# 　　・ダイヤモンドの○○……(与ダメージ)敵対Mobの全部 (道具損傷)2
+# 　
+# 　初期設定の数値は，本来の仕様にあわせたものです。
+# 　
+
+
+# ■ ゾンビを攻撃したときの設定
+On damage of a zombie or a zombie pigman:
+	# ▼発動条件
+	Attacker is a player
+	Attacker is holding any shovels
+	# ▼ここからプログラム
+	push the victim in the direction of the attacker at speed 3
+	push the victim upward
+	If Attacker is holding Wooden Shovel:		#木のシャベル
+		damage the tool of the attacker by 4
+		Damage victim by 5
+	Else If Attacker is holding Stone Shovel:	#石のシャベル
+		damage the tool of the attacker by 4
+		Damage victim by 100
+	Else If Attacker is holding Iron Shovel:	#鉄のシャベル
+		damage the tool of the attacker by 3
+		Damage victim by 100
+	Else If Attacker is holding Gold Shovel:	#金のシャベル
+		damage the tool of the attacker by 2
+		Damage victim by 100
+	Else If Attacker is holding Diamond Shovel:	#ダイヤモンドのシャベル
+		damage the tool of the attacker by 1
+		Damage victim by 100
+
+
+# ■ クリーパーを攻撃したときの設定
+On damage of a Creeper:
+	# ▼発動条件
+	Attacker is a player
+	Attacker is holding a shears
+	# ▼ここからプログラム
+	push the victim in the direction of the attacker at speed 3
+	push the victim upward
+	damage the tool of the attacker by 3		#はさみは，鉄の○○に準拠
+	Damage victim by 100
+
+
+# ■ エンダーマンを攻撃したときの設定
+On damage of a enderman:
+	# ▼発動条件
+	Attacker is a player
+	Attacker is holding any hoes
+	# ▼ここからプログラム
+	push the victim in the direction of the attacker at speed 3
+	push the victim upward
+	If Attacker is holding Wooden Hoe:		#木のクワ
+		damage the tool of the attacker by 4
+		Damage victim by 10
+	Else If Attacker is holding Stone Hoe:		#石のクワ
+		damage the tool of the attacker by 4
+		Damage victim by 100
+	Else If Attacker is holding Iron Hoe:		#鉄のクワ
+		damage the tool of the attacker by 3
+		Damage victim by 100
+	Else If Attacker is holding Gold Hoe:		#金のクワ
+		damage the tool of the attacker by 2
+		Damage victim by 100
+	Else If Attacker is holding Diamond Hoe:	#ダイヤモンドのクワ
+		damage the tool of the attacker by 1
+		Damage victim by 100
+
+
+# ■ クモを攻撃したときの設定
+On damage of a Spider or a Cave Spider:
+	# ▼発動条件
+	Attacker is a player
+	Attacker is holding any Axes
+	# ▼ここからプログラム
+	push the victim in the direction of the attacker at speed 3
+	push the victim upward
+	If Attacker is holding Wooden Axe:		#木の斧
+		damage the tool of the attacker by 4
+		Damage victim by 4
+	Else If Attacker is holding Stone Axe:		#石の斧
+		damage the tool of the attacker by 4
+		Damage victim by 100
+	Else If Attacker is holding Iron Axe:		#鉄の斧
+		damage the tool of the attacker by 3
+		Damage victim by 100
+	Else If Attacker is holding Gold Axe:		#金の斧
+		damage the tool of the attacker by 2
+		Damage victim by 100
+	Else If Attacker is holding Diamond Axe:	#ダイヤモンドの斧
+		damage the tool of the attacker by 1
+		Damage victim by 100
+
+
+# ■ スケルトンを攻撃したときの設定
+On damage of a Skeleton or a Wither Skeleton:
+	# ▼発動条件
+	Attacker is a player
+	Attacker is holding any Pickaxes
+	# ▼ここからプログラム
+	push the victim in the direction of the attacker at speed 3
+	push the victim upward
+	If Attacker is holding Wooden Pickaxe:		#木のピッケル
+		damage the tool of the attacker by 4
+		Damage victim by 5
+	Else If Attacker is holding Stone Pickaxe:	#石のピッケル
+		damage the tool of the attacker by 4
+		Damage victim by 100
+	Else If Attacker is holding Iron Pickaxe:	#鉄のピッケル
+		damage the tool of the attacker by 3
+		Damage victim by 100
+	Else If Attacker is holding Gold Pickaxe:	#金のピッケル
+		damage the tool of the attacker by 2
+		Damage victim by 100
+	Else If Attacker is holding Diamond Pickaxe:	#ダイヤモンドのピッケル
+		damage the tool of the attacker by 1
+		Damage victim by 100
+

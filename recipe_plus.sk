@@ -1,0 +1,13 @@
+#　★追加レシピ
+#　　レシピはサーバーを再起動する度にリセットされるので，そのたびレシピを再登録する。
+
+on server start:
+	# ▼砂糖，にんじんx3，卵 → かぼちゃパイ
+	register new shaped recipe for Pumpkin Pie named "<r>キャロットパイ" using air, sugar, air, carrot, carrot, carrot, air, egg, air
+	# ▼羽根x9 → 羊毛
+	register new shapeless recipe for a white wool using feather, feather, feather, feather, feather, feather, feather, feather, feather
+	# ▼土x8，水の入ったバケツ → 粘土
+	register new shaped recipe for a clay using dirt, dirt, dirt, dirt, water bucket, dirt, dirt, dirt, dirt
+
+
+

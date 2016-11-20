@@ -1,0 +1,360 @@
+#　★紀年法スクリプト
+#
+#　☆概要
+#　　・ゲーム内の時間進行によって，暦を数えます。
+#　　・暦は，税の取り立てタイミングや，金属市場の営業時間などに関わります。
+#　　・日付は，午前6時に更新されます。
+#
+#　☆履歴
+#　　16/02/04: version 1.1.0
+#　　　・サーバーに誰も接続していないとき，暦を進めないようにしました。
+#　　　・強制日めくりコマンドは，OP権限保持者だけ使用できるようにしました。
+
+
+
+# ■変数の初期設定
+variables:
+	{cyear} = 1			# 年
+	{cmonth} = 1			# 月。
+	{cday} = 1			# 日。
+	{chimekuri} = 1			# 月日を1～366で数えたもの。
+	{cweek} = 0			# 曜日。0→月曜，1→火曜，…，6→日曜。
+	{cleap} = 0			# 閏年判定用。0～3。
+	{cvisible.%player%} = 1		# 暦の表示。0が非表示。
+	{csansei} = "月"		# 幻想郷暦・三精。
+	{cshiki} = "夏"			# 幻想郷暦・四季。
+	{cgogyo} = "火"			# 幻想郷暦・五行。
+	{monthimyo} = "睦月"		# 月の異名
+
+
+# ■毎朝6時の暦更新(トリガーをmoney_bar.skへ移動)
+#At 6am in "World":
+#	# ▼現在のログイン人数を数える
+#	set {_loopnumber} to 0
+#	loop all players:
+#		add 1 to {_loopnumber}
+#	# ▼もし，プレイヤーがいなかったら，暦を進めない
+#	if {_loopnumber} = 0:
+#		exit
+#	# ▼暦を進める
+#	invoke "tearoff"
+
+
+# ■暦の強制進行
+command /himekuri <number=1>:
+	permission: sakuraft.op
+	trigger:
+		set {_day} to arg-1
+		loop {_day} times:
+			invoke "tearoff"
+
+
+
+# □暦を数えるサブルーチン
+Sub "tearoff":
+	add 1 to {chimekuri}				# 月日に1を加える。
+	
+	if {chimekuri} > 366:				# 年次処理
+		set {chimekuri} to 1
+		add 1 to {cyear}
+		add 1 to {cleap}
+		
+		set {_year} to {cyear}			# 三精の計算
+		while {_year} > 3:
+			remove 3 from {_year}
+		if {_year} = 1:
+			set {csansei} to "月"
+		if {_year} = 2:
+			set {csansei} to "星"
+		if {_year} = 3:
+			set {csansei} to "日"
+		
+		set {_year} to {cyear}			# 四季の計算
+		while {_year} > 4:
+			remove 4 from {_year}
+		if {_year} = 1:
+			set {cshiki} to "夏"
+		else if {_year} = 2:
+			set {cshiki} to "秋"
+		else if {_year} = 3:
+			set {cshiki} to "冬"
+		else:
+			set {cshiki} to "春"
+		
+		set {_year} to {cyear}			# 五行の計算
+		while {_year} > 5:
+			remove 5 from {_year}
+		if {_year} = 1:
+			set {cgogyo} to "火"
+		else if {_year} = 2:
+			set {cgogyo} to "水"
+		else if {_year} = 3:
+			set {cgogyo} to "木"
+		else if {_year} = 4:
+			set {cgogyo} to "金"
+		else:
+			set {cgogyo} to "土"
+		
+		if {cleap} > 3:				# うるう年にかかわる処理
+			set {cleap} to 0
+		
+	add 1 to {cweek}				# 週の処理
+	if {cweek} > 6:
+		set {cweek} to 0
+	
+	set {cday} to {chimekuri}			# 表示用月日の更新
+	if {chimekuri} > 335:				# 12月と判定
+		set {cmonth} to 12
+		remove 335 from {cday}
+		set {monthimyo} to "師走"
+	else if {chimekuri} > 305:			# 11月と判定
+		set {cmonth} to 11
+		remove 305 from {cday}
+		set {monthimyo} to "霜月"
+	else if {chimekuri} > 274:			# 10月と判定
+		set {cmonth} to 10
+		remove 274 from {cday}
+		set {monthimyo} to "神在月"
+	else if {chimekuri} > 244:			# 9月と判定
+		set {cmonth} to 9
+		remove 244 from {cday}
+		set {monthimyo} to "長月"
+	else if {chimekuri} > 213:			# 8月と判定
+		set {cmonth} to 8
+		remove 213 from {cday}
+		set {monthimyo} to "葉月"
+	else if {chimekuri} > 182:			# 7月と判定
+		set {cmonth} to 7
+		remove 182 from {cday}
+		set {monthimyo} to "文月"
+	else if {chimekuri} > 152:			# 6月と判定
+		set {cmonth} to 6
+		remove 152 from {cday}
+		set {monthimyo} to "水無月"
+	else if {chimekuri} > 121:			# 5月と判定
+		set {cmonth} to 5
+		remove 121 from {cday}
+		set {monthimyo} to "皐月"
+	else if {chimekuri} > 91:			# 4月と判定
+		set {cmonth} to 4
+		remove 91 from {cday}
+		set {monthimyo} to "卯月"
+	else if {chimekuri} > 60:			# 3月と判定(うるう年)
+		set {cmonth} to 3
+		remove 60 from {cday}
+		set {monthimyo} to "弥生"
+	else if {chimekuri} > 59:			# 3月と判定
+		if {cleap} < 3:
+			set {cmonth} to 3
+			set {cday} to 1
+			set {chimekuri} to 60
+			set {monthimyo} to "弥生"
+		else:
+			set {cmonth} to 2
+			set {cday} to 29
+			set {monthimyo} to "如月"
+	else if {chimekuri} > 31:			# 2月と判定
+		set {cmonth} to 2
+		remove 31 from {cday}
+		set {monthimyo} to "如月"
+	else:						# 1月と判定
+		set {cmonth} to 1
+		set {monthimyo} to "睦月"
+	
+	if {cweek} = 0:					# 週の判定
+		set {_week} to "月"
+	else if {cweek} = 1:
+		set {_week} to "火"
+	else if {cweek} = 2:
+		set {_week} to "水"
+	else if {cweek} = 3:
+		set {_week} to "木"
+	else if {cweek} = 4:
+		set {_week} to "金"
+	else if {cweek} = 5:
+		set {_week} to "土"
+	else:
+		set {_week} to "日"
+	
+	loop all players:				# 暦の通知
+		if {cvisible.%loop-player%} = 1:
+			message "<lime>[<white>Calender<lime>]<white> 今日は %{cyear}%年目 %{cmonth}%月%{cday}%日 %{_week}%曜日 です。" to loop-player
+		if {cvisible.%loop-player%} = 2:
+			message "<lime>[<white>Keine<lime>]<white> 今日は 第%{cyear}%季(%{csansei}%と%{cshiki}%と%{cgogyo}%の年) %{monthimyo}% %{cday}%日 %{_week}%曜日 だ。" to loop-player
+	# 年中行事の通知(全員強制受信)
+	if {chimekuri} is between 298 and 305:
+		broadcast "<lime>[<white>Calender<lime>]<white> Trick or Treat!! 今週は<yellow>ハロウィーン<white>週間です。敵対Mobを倒すと何かいいコトあるかも。"
+	# Twitterへ通知
+	if {chimekuri} is 1:
+		execute console command "/mt tw 明けましておめでとうございます！。サクラフト世界では，第%{cyear}%季(%{csansei}%と%{cshiki}%と%{cgogyo}%の年)を迎えました。"
+	if {chimekuri} is 298:
+		execute console command "/mt tw  TrickOrTreat！今週はハロウィーン週間です。敵対Mobを倒すと何かいいコトあるかも。"
+
+
+
+# 【コマンド】暦更新レポートの表示設定
+
+command /creport <number>:
+	trigger:
+		if arg = 0:
+			set {cvisible.%player%} to 0
+			message "<lime>[<white>Calendar<lime>] <white>暦表示を「なし」に設定しました。"
+		else if arg = 1:
+			set {cvisible.%player%} to 1
+			message "<lime>[<white>Calendar<lime>] <white>暦表示を「現代式紀年法」に設定しました。"
+		else if arg = 2:
+			set {cvisible.%player%} to 2
+			message "<lime>[<white>Keine<lime>] <white>暦表示を「幻想郷式紀年法」に設定したぞ。"
+		else:
+			message "<lime>[<white>Calendar<lime>] <red>その設定は無効です。"
+			message " <lime>/creport 0 <white>で<yellow>「暦表示なし」<white>に設定。"
+			message " <lime>/creport 1 <white>で<yellow>「現代式紀年法を表示」<white>に設定。"
+			message " <lime>/creport 2 <white>で<yellow>「幻想郷式紀年法を表示」<white>に設定。"
+
+
+
+# ■□■年中行事スクリプト■□■
+
+
+#
+# ■ 【盆】8月15日
+#
+
+on spawn of a zombie:							# ゾンビがスポーンしたとき
+	{chimekuri} = 228						# 8月15日限定
+	entity's y-coordinate is bigger than 64				# ゾンビの高さが64(海水面)以上のとき
+	chance of 8%:							# 8％の確率で
+		cancel the event					# ゾンビは消す
+		spawn a giant						# ジャイアントが出現
+
+
+command /gnt:
+	trigger:
+		spawn a giant
+
+
+on spawn of a giant:							# ジャイアントがスポーンしたとき
+	broadcast "<lime>[<white>patrol<lime>]<white> ジャイアントの出現を確認 至急対処されたし"
+
+
+on damage of a giant:							# ジャイアントがダメージを食らったとき
+	set {_giant} to random integer from 0 to 99
+	if {_giant} is between 0 and 19:				# 5分の1の確率で
+		spawn a zombie 5 meters above the victim		# ゾンビが出現
+#	else if {_giant} is between 20 and 24:				# 20分の1の確率で
+#		spawn a Chicken 5 meters above the victim		# チキンジョッキーが出現
+#		spawn a Zombie 5 meters above the victim
+#		spawn the Zombie mount in Chicken 5 meters above the victim
+	else if {_giant} is between 25 and 29:				# 20分の1の確率で
+		spawn a Spider 5 meters above the victim		# スパイダージョッキーが出現
+		spawn a Skeleton 5 meters above the victim		# スケルトンが出現
+	else if {_giant} is 30:				# 100分の1の確率で
+		spawn 5 Silverfishes 5 meters above the victim		# シルバーフィッシュ5体が出現
+#	set target of victim to the direction of attacked
+
+
+
+on death of a giant:
+	wait a tick
+	chance of 25%:
+		drop a cat music disc at victim
+	chance of 25%:
+		drop a blocks music disc at victim
+	chance of 25%:
+		drop a chirp music disc at victim
+	chance of 25%:
+		drop a far music disc at victim
+	chance of 25%:
+		drop a mall music disc at victim
+	chance of 25%:
+		drop a mellohi music disc at victim
+	chance of 25%:
+		drop a stal music disc at victim
+	chance of 25%:
+		drop a strad music disc at victim
+	chance of 25%:
+		drop a ward music disc at victim
+	chance of 25%:
+		drop a 11-disc at victim
+	chance of 25%:
+		drop a wait music disc at victim
+	chance of 25%:
+		drop a villager spawn egg at victim
+
+
+
+
+
+# 【ハロウィン週間】10月24日～10月31日
+on death of a Cave Spider or a Creeper or a Enderman or a Silverfish or a Skeleton or a Spider or a Witch or a Zombie:
+	attacker is a player
+	{chimekuri} is between 298 and 305
+#	{chimekuri} is between 1 and 366
+	set {_lot} to a random number between 0 and 99.99
+	if {_lot} < 19.99:				# 10ガバス獲得(20.00%)
+		add 10 to the attacker's money
+		message "<lime>[<white>helloween<lime>] <white>10ガバス獲得！" to attacker
+	else if {_lot} < 29.99:				# 100ガバス獲得(10.00%)
+		add 100 to the attacker's money
+		message "<lime>[<white>helloween<lime>] <white>100ガバス獲得！！" to attacker
+	else if {_lot} < 30.49:				# 500ガバス獲得(00.50%)
+		add 500 to the attacker's money
+		message "<lime>[<white>helloween<lime>] <white>500ガバス獲得！！！" to attacker
+	else if {_lot} < 30.59:				# 1000ガバス獲得(00.10%)
+		add 1000 to the attacker's money
+		message "<lime>[<white>helloween<lime>] <white>1000ガバス獲得！！！！" to attacker
+	else if {_lot} < 30.60:				# 10000ガバス獲得(00.01%)
+		add 10000 to the attacker's money
+		message "<lime>[<white>helloween<lime>] <white>10000ガバス獲得！！！！" to attacker
+	else if {_lot} < 31.59:				# ラピスラズリ獲得(01.00%)
+		drop a Lapis Lazuli at the victim
+	else if {_lot} < 31.69:				# エメラルド獲得(00.10%)
+		drop an Emerald at the victim
+	else if {_lot} < 32.19:				# 鉄インゴット獲得(00.50%)
+		drop an Iron Ingot at the victim
+	else if {_lot} < 32.24:				# 金インゴット獲得(00.05%)
+		drop a Gold Ingot at the victim
+	else if {_lot} < 32.25:				# ダイヤモンド獲得(00.01%)
+		drop a Diamond at the victim
+	else if {_lot} < 32.30:				# 金のりんご獲得(00.05%)
+		drop a Golden Apple at the victim
+	else if {_lot} < 32.34:				# 金のにんじん獲得(00.05%)
+		drop a Golden Carrot at the victim
+	else if {_lot} < 37.34:				# ケーキ獲得(05.00%)
+		drop a Cake at the victim
+	else if {_lot} < 47.34:				# パンプキンパイ獲得(10.00%)
+		drop a Pumpkin Pie at the victim
+	else if {_lot} < 67.34:				# クッキー獲得(20.00%)
+		drop a Cookie at the victim
+	else if {_lot} < 77.34:				# かぼちゃ獲得(10.00%)
+		drop a Pumpkin at the victim
+	else if {_lot} < 82.34:				# ジャック・Ｏ・ランタン獲得(05.00%)
+		drop a Jack-O-Lantern at the victim
+	else if {_lot} < 92.34:				# 松明獲得(10.00%)
+		drop a Torch at the victim
+	else if {_lot} < 93.34:				# グロウストーンダスト獲得(01.00%)
+		drop a Glowstone Dust at the victim
+	else if {_lot} < 93.54:				# 火薬獲得(00.20%)
+		drop a Gunpowder at the victim
+	else if {_lot} < 94.04:				# ネームタグ獲得(00.50%)
+		drop a Name Tag at the victim
+	else if {_lot} < 94.29:				# 馬の鎧鉄獲得(00.25%)
+		drop an Iron Horse Armor at the victim
+	else if {_lot} < 94.39:				# 馬の鎧金獲得(00.10%)
+		drop a Gold Horse Armor at the victim
+	else if {_lot} < 94.44:				# 馬の鎧ダイヤ獲得(00.05%)
+		drop a Diamond Horse Armor at the victim
+	else if {_lot} < 94.69:				# サドル獲得(00.25%)
+		drop a Saddle at the victim
+	else if {_lot} < 95.19:				# 花火獲得(00.50%)
+		drop a Firework Rocket at the victim
+
+
+
+
+
+
+
+
+
+

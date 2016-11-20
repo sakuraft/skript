@@ -1,0 +1,39 @@
+#
+# ■ 牛乳連続飲みスクリプト
+#
+
+
+# ■変数の初期設定
+variables:
+	{milk.renzoku.%player%} = 0		# 現在，連続何杯の牛乳を飲み干せたか。
+	{milk.record.%player%} = 0		# 個人の牛乳早飲み記録。
+	{milk.top.name} = ""			# 総合の牛乳早飲み記録保持者。
+	{milk.top.record} = 0			# 総合牛乳早飲み記録。
+
+
+# ■牛乳を飲む処理
+on drink of Milk:
+	set {_gero} to a random number between 0 and 1
+	if {_gero} < 0.05:
+		broadcast "<lime>[FujimuraD] <yellow>%player's display name% さん，リバース！ <white>牛乳連飲記録は <lime>%{milk.renzoku.%player%}% <white>回でした。"
+		execute console command "/mt tw %player's display name%さん，リバース！ 牛乳連飲記録は %{milk.renzoku.%player%}% 回でした。"
+		wait 5 ticks
+		apply potion of nausea 1 to the player for 10 seconds
+		if {milk.renzoku.%player%} > {milk.record.%player%}:
+			set {milk.record.%player%} to {milk.renzoku.%player%}
+		set {milk.renzoku.%player%} to 0
+	else:
+		add 1 to {milk.renzoku.%player%}
+	if {milk.renzoku.%player%} > {milk.top.record}:
+		set {milk.top.record} to {milk.renzoku.%player%}
+		set {milk.top.name} to player's display name
+
+
+# ■牛乳早飲み記録の確認
+command /milk:
+	trigger:
+		message "<lime>[FujimuraD] <r>%player's display name% くぅん，牛乳連飲記録を確認するかぁい？"
+		message " 総合記録は<lime> %{milk.top.name}% <r>くんの <yellow>連続%{milk.top.record}%回 <r>だよぉ。"
+		message " %player's display name% くんの記録は， <yellow>連続%{milk.renzoku.%player%}%回 <r>だ。"
+
+

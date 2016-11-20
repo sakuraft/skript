@@ -1,0 +1,90 @@
+# ■ 大本営スクリプト Version 2.0
+# ログイン時および毎時に表示されるメッセージの制御。
+
+
+# 更新履歴
+# 
+# Ver.2.0　2015/10/22更新
+#　・PR一覧表示機能の追加。
+#　・不適切なメッセージを管理者権限で消せるコマンドの追加。
+# Ver.1.0　2015/02/08更新
+#　・完成。
+
+
+
+# ■変数の初期設定
+variables:
+	{prmesse::%player%} = ""		# 各プレイヤーが登録した広告。
+
+
+
+# ■ログイン時のメッセージ。
+# 　メッセージは，このスクリプトを直接手入力をする
+on join:
+	message "<lime>[manager]<white> <light blue>おかえりなさい，%player%"
+	message "<lime>[TVH]<white> <yellow>クラフト税の徴税を開始します"
+	message "<lime>[TVH]<white> 2月7日より，クラフト税が導入されています"
+	message "<lime>[TVH]<white> クラフトするものによってはかなりの高額となっていますので"
+	message "<lime>[TVH]<white> 破産しないようご注意ください"
+	message "<lime>[TVH]<white> その他更新情報などは，スプレッドシートをご参照ください"
+
+
+# ■広告関連コマンド。Ver.2.0で大拡充。
+command /pr <text>:
+	description: 毎時12時に表示される広告関連のスクリプト。
+	usage: /pr [instruction] ※詳しくは，/pr help って打ってみてほしい。
+	trigger:
+		set {_inst} to arg 1							# 消すだの登録するだの指示
+		if {_inst} is "help":							# PR機能の詳細なヘルプを表示する。
+			message "<lime>[<white>TVH-PR<lime>]<white> PR機能を使って，自身の主張を全プレイヤーに広く伝えることができます。また，同じ内容をTwitterにもツイートします。"
+			message " <yellow>/pr [message]<white> : [message]の内容で自身のPR情報を登録します。無料で行えます。"
+			message " <yellow>/pr delete<white> : 自身のPR情報を削除します。無料で行えます。"
+			message " <yellow>/pr list<white> : 全プレイヤーのPR情報一覧を表示します。無料で行えます。"
+		else if {_inst} is "del" or "delete" or "kesu" or "none":		# PRを消す。
+			delete {prmesse::%player%}
+			message "<lime>[<white>TVH-PR<lime>]<white> 自身のPR情報を消去しました。"
+		else if {_inst} is "list":						# PRの一覧表示。
+			message "<lime>[<white>TVH-PR<lime>]<white> 登録されたすべてのPR情報を一覧表示します……。"
+			loop {prmesse::*}:
+				if {prmesse::%loop-index%} isn't "":
+					message "<gray> %{prmesse::%loop-index%}%"
+			message " …以上です。メッセージ表示が多すぎて見られない場合は，Tキーを押してから，メッセージ欄をスクロールしてご覧ください。"
+		else:									# PRを登録する。
+			set {prmesse::%player%} to "(%player%) %{_inst}%"
+			message "<lime>[<white>TVH-PR<lime>]<white> PR情報を登録しました。毎時正午にPRが打たれます。なお費用は発生しません。"
+			message "<lime>[<white>TVH-PR<lime>]<gray> %{prmesse::%player%}%"
+
+
+
+# ■他人のコマンドを消せる超強力コマンド。管理者専用。悪用厳禁。
+command /prsuperdelete <text>:
+	trigger:
+		set {_player} to arg 1
+		delete {prmesse::%{_player}%}
+		message "<lime>[<white>TVH-PR<lime>]<white> %{_player}%のPR情報を消去しました。"
+
+
+
+# ■毎時正午に広告が打たれる。ただしY<60のときは放送が聞こえない。
+At 12:00 in "world":
+	set {_messe} to a random text of {prmesse::*}					# 登録のあるメッセージから1つ選ぶ
+	if {_messe} is "":								# もし，nullテキストが選ばれた場合は公共広告機構が登場
+		set {_acmesse::1} to "(AC) 広告機能は積極的に活用しましょう。/pr <文字列> で広告を打てます"	#以下，ACテキスト
+		set {_acmesse::2} to "(AC) 駅建設など公共事業を行う際には，積極的に国庫を利用しましょう。ただし独断での利用はトラブルの原因となります。必ず他人と合議の上で。"
+		set {_acmesse::4} to "(AC) モルスァ"
+		set {_acmesse::5} to "(AC) らりるれろ！らりるれろ！らりるれろ！らりるれろ！"
+		set {_acmesse::6} to "(AC) 王様橋が落とされたぞ！！"
+		set {_acmesse::7} to "(AC) 歴史が大きくかわるとき，ラーズグリーズはその姿を現す。はじめには漆黒の悪魔として，悪魔はその力をもって大地に死を降り注ぎ，やがて死ぬ。しばしの眠りのあと，ラーズグリーズは再び現れる…。"
+		set {_acmesse::8} to "(AC) 認めよう，君の力を。今この瞬間から，君はレイヴンだ。"
+		set {_messe} to a random text of {_acmesse::*}
+	loop all players:
+		if loop-player's y-coordinate is smaller than 60:			# 自身が高さ60以下にいるとき，広告は聞こえません
+			exit
+		else:
+			message "<lime>[<white>TVH-PR<lime>]<white> %{_messe}%" to loop-player
+
+
+
+
+
+

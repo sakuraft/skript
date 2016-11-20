@@ -1,0 +1,415 @@
+# ■ ゲスト制御＆初心者支援スクリプト Version 1.0
+
+
+# 更新履歴
+# 
+# Ver.0.1　2015/12/13更新
+#　・最低限のゲスト管理機能が完成。
+
+
+
+# ■変数の初期設定
+variables:
+	{dealer} = ""
+	# ゲストの監督人(ディーラー)。OPしかなれない。
+	# ゲストは，ディーラーから遠く離れた場所にはいられない。
+	# また，ゲストはディーラーがいない状態ではログインできない。
+	{tutorial.%player%} = 0
+	# チュートリアルの進行状況。
+
+
+
+#メモ
+#ダイヤ装備全種
+#パン64個
+#石炭32個
+#オークの原木32
+#ベッド1
+#チェスト1
+#エメラルド32
+#たいまつ64
+#弓1
+#矢64
+#
+#
+#/sosで30秒無敵ののちリスぽーん地点へ戻る
+
+#②仕事の就き方2つ選べ
+#
+#①所持金の確認
+#
+#③買い物のしかた
+
+
+
+
+
+
+# ■はじめてのログイン時イベント
+On First Login:
+	# ▼スターターキット(初期アイテム)配布
+	give all diamond armors to the player	# 全ダイヤ装備
+	give all diamond tools to the player	# 全ダイヤ道具
+	give 64 breads to the player		# パン64個
+	give 64 coal to the player		# 石炭64個
+	give 32 oak wood to the player		# オークの原木32個
+	give a bed to the player		# ベッド
+	give a chest to the player		# チェスト
+	give 64 torches to the player		# たいまつ64本
+	give a bow to the player		# 弓
+	give 64 arrows to the player		# 矢64本
+	# ▼初期ログイン時メッセージ
+	wait 1 seconds
+	message "<red>[<white>Immigration<red>]<white> サクラフト の世界へようこそ。"
+	message " 初期ログイン時にスターターキットをお配りしております。"
+
+
+
+
+# ■ゲストのログイン時処置
+On Login:
+	# ▼パーミッション "sakuraft.national" を持たないとき
+	player doesn't have permission "sakuraft.national"
+	# ▼短期滞在者は，ディーラー不在のときログインできません。
+	If {dealer} = "":		# ディーラー不在のとき
+		kick the player due to "サーバー内に監督人がいないため，ログインできません。"
+		exit 1 sections
+	# ▼短期滞在の状況であることを知らせるメッセージ
+	wait 5 seconds
+	message "<red>[<white>Immigration<red>]<white> サクラフト の世界へようこそ。"
+	wait 3 seconds
+	message " 現在，あなたは入国審査待ちか短期滞在の状況にあります。"
+	wait 3 seconds
+	message " サーバー内の行動には制限がかかることをご了承ください。"
+	wait 3 seconds
+	message " 国籍取得希望者は，今しばらくお待ちください。"
+
+
+
+# ■ディーラーになる／やめるコマンド(OP専用コマンド)
+command /dealer:
+	permission: sakuraft.op
+	trigger:
+		if {dealer} = player:		# ディーラーをやめる処置
+			set {dealer} to ""
+			message "ディーラーをやめました"
+			Loop all players:	# ログイン中の全プレイヤーをチェック
+				# ▼市民権を得ていないとき
+				loop-player doesn't have permission "sakuraft.national"
+				# ▽サーバーから強制退出
+				kick the loop-player due to "サーバー内に監督人がいないため，キックされました。"
+		else:				# ディーラーになる処置
+			set {dealer} to player
+			message "現在，あなたがディーラーです"
+
+
+
+# ■ディーラーがログアウトするときには，テキストも
+On Logout:
+	{dealer} = player		# プレイヤーがディーラーだったとき
+	set {dealer} to ""		# 変数も空っぽに
+	Loop all players:		# ログイン中の全プレイヤーをチェック
+		# ▼市民権を得ていないとき
+		loop-player doesn't have permission "sakuraft.national"
+		# ▽サーバーから強制退出
+		kick the loop-player due to "サーバー内に監督人がいないため，キックされました。"
+
+
+
+# ■ゲストの遠出チェック(taxtaxtax.skに移動)
+#Every 5 seconds:
+#	# 【条件】ディーラーのいるとき
+#	{dealer} isn't ""
+#	# ■ゲストの遠出チェック
+#	Loop all players:
+#		# 【条件1】市民権を持たないとき
+#		loop-player doesn't have permission "sakuraft.national"
+#		# 【条件2】ディーラーとの距離が100mを超えるとき
+#		distance between the loop-player and {dealer} is bigger than 100
+#		# ▽ディーラーのいる場所へ飛ばされる
+#		teleport the loop-player to {dealer}
+#
+
+command /qset <player=%player%> <number=0>:
+	permission: sakuraft.op
+	trigger:
+		set {tutorial.%arg 1%} to arg 2
+		message "チュートリアルを %{tutorial.%arg 1%}% にリセット。"
+
+
+command /qcheck <player=%player%>:
+	trigger:
+		message "チュートリアルフラグは %{tutorial.%arg 1%}% です。"
+
+# ■初心者チュートリアル
+# 　サクラフトサーバーのルールなどをクエスト方式で自動で説明する。
+# 　セリフは左クリックで進みます。
+
+# □初心者チュートリアル①
+# 　サクラフトサーバーのルールなどをクエスト方式で自動で説明する。
+# ▼パーミッション "sakuraft.national" を持った，はじめてのログインで作動。
+
+# 0
+on login:
+	player has permission "sakuraft.national"
+	{tutorial.%player%} = 0
+	wait 3 seconds
+	play raw sound "random.levelup" at player with pitch 1.5 volume 10
+	execute console command "/title %player% subtitle {text:""左下に注目，クリックで進行"",color:""yellow""}"
+	execute console command "/title %player% times 0 120 40"
+	execute console command "/title %player% title {text:""初心者チュートリアル"",color:""light_purple""}"
+#	display "<magenta>初級チュートリアル<r> <b>クリックで進行 Tキーで過去ログ" on bossbar with 0 percent by 99999 seconds for player
+	message "<magenta>[tutorial] <yellow><b>左クリックで次のテキストを表示<r>します。<yellow>▼"
+	add 1 to {tutorial.%player%}	# ▽テキストの早送り禁止機構
+	wait 0.2 second			# 　||
+	add 1 to {tutorial.%player%}	# △ここまで
+
+# 2～28
+on click:
+	player has permission "sakuraft.national"
+	{tutorial.%player%} is between 2 and 28
+	cancel the event
+	play raw sound "random.orb" at player with pitch 1.5 volume 10
+	if {tutorial.%player%} = 2:
+		message "<magenta>[akatsuki]<r> サクラフト の世界へようこそ！第六駆逐隊の暁(あかつき)よ。<yellow>▼"
+		
+	else if {tutorial.%player%} = 4:
+		message "<magenta>[akatsuki]<r> 一人前のレディーである暁が，あなたが一人前になるまで"
+		message " 面倒を見てあげるんだから！<yellow>▼"
+		
+	else if {tutorial.%player%} = 6:
+		message "<magenta>[akatsuki]<r> まずは，このサーバーについて教えてあげるわ。<yellow>▼"
+		
+	else if {tutorial.%player%} = 8:
+		message "<magenta>[akatsuki] <b>サクラフトサーバー<r>は，みんなで街づくりを楽しむための"
+		message " マインクラフトサーバーなのよ。<yellow>▼"
+		
+	else if {tutorial.%player%} = 10:
+		message "<magenta>[akatsuki]<r> あなたは，この世界に入植した開拓者のひとりってことになるわ。<yellow>▼"
+		
+	else if {tutorial.%player%} = 12:
+		message "<magenta>[akatsuki]<r> もちろん，あなたといっしょに開拓を行う仲間もいるから"
+		message " 最低限度の礼儀はとっても大切なのよ！<yellow>▼"
+		
+	else if {tutorial.%player%} = 14:
+		message "<magenta>[akatsuki]<r> そしてこのサーバーは"
+		message " <lime>鉄道網を中心に街を広げていく<r>方針で開発が進んでいるの。<yellow>▼"
+		
+	else if {tutorial.%player%} = 16:
+		message "<magenta>[akatsuki]<r> よく覚えておいてね。<yellow>▼"
+		
+	else if {tutorial.%player%} = 18:
+		execute console command "/tellraw @p ["""",{""text"":""[akatsuki]"",""color"":""light_purple""},{""text"":"" サーバーの詳細なルールについては，""},{""text"":""ホームページ"",""underlined"":true,""color"":""aqua"",""clickEvent"":{""action"":""open_url"",""value"":""https://sites.google.com/site/sakuraftrailwey/hajimeni""}},{""text"":""があるから，そこをよく読んでおいてほしいわ。""}]"
+		message "<magenta>[tutorial] <grey><i>青線下線部をクリックすると，ブラウザが起動します。<r><yellow>▼"
+
+	else if {tutorial.%player%} = 20:
+		message "<magenta>[akatsuki]<r> 今から， この世界で生きる上でとても大事なことを3つ教えるから,"
+		message " <B>暁の言ったとおり指示に従いなさい<r>。<yellow>▼"
+
+	else if {tutorial.%player%} = 22:
+		execute console command "/title %player% subtitle {text:""キーボードのTキーを押して， /money と入力する"",color:""yellow""}"
+		execute console command "/title %player% times 0 120 40"
+		execute console command "/title %player% title {text:""所持金を確認しよう"",color:""light_purple""}"
+		message "<magenta>[akatsuki]<r> まず， あなたの持っている所持金を確認するわ。<yellow>▼"
+		message "<magenta>[tutorial] <grey><i>キーボードのTキーを押して， /money と入力する。<r>"
+#		display "<magenta>初級チュートリアル<r> <b>/money と入力して，所持金を確認しよう" on bossbar with 0 percent by 99999 seconds for player
+		add 6 to {tutorial.%player%}
+	add 1 to {tutorial.%player%}	# ▽テキストの早送り禁止機構
+	wait 0.2 second			# 　||
+	add 1 to {tutorial.%player%}	# △ここまで
+
+# 30 /moneyコマンド実行
+on command "/money":
+	player has permission "sakuraft.national"
+	{tutorial.%player%} is between 26 and 30
+	wait 0.2 second
+	add 1 to the player's level
+	play raw sound "random.levelup" at player with pitch 2 volume 10
+	message "<magenta>[akatsuki]<r> よくできました！ あなたの所持金が確認できたわ！！<yellow>▼"
+	add 1 to {tutorial.%player%}	# ▽テキストの早送り禁止機構
+	wait 0.2 second			# 　||
+	add 1 to {tutorial.%player%}	# △ここまで
+
+# 32～44
+on click:
+	player has permission "sakuraft.national"
+	{tutorial.%player%} is between 32 and 44
+	cancel the event
+	play raw sound "random.orb" at player with pitch 1.5 volume 10
+	if {tutorial.%player%} = 32:
+		message "<magenta>[akatsuki]<r> この世界では， お金を使うことで， モノを買ったり， 温泉につかったり， いろいろなことができるのよ。<yellow>▼"
+	else if {tutorial.%player%} = 34:
+		message "<magenta>[akatsuki]<r> でも， お金って， どうすれば手に入れられると思うかしら？<yellow>▼"
+	else if {tutorial.%player%} = 36:
+		message "<magenta>[akatsuki]<r> お金を手に入れるために， 仕事に就きましょう！<yellow>▼"
+	else if {tutorial.%player%} = 38:
+		message "<magenta>[akatsuki]<r> このフェリーを出たところにハローワークがあるから， そこへ向かうのよ。<yellow>▼"
+	else if {tutorial.%player%} = 40:
+		message "<magenta>[akatsuki]<r> 白いギリシャ神殿風の建物で，なぜか屋根に大きな初心者マークがある建物よ。<yellow>▼"
+	else if {tutorial.%player%} = 42:
+		message "<magenta>[akatsuki]<r> 近くまで来られたならば， また暁があなたに声をかけるわ。<yellow>▼"
+	else if {tutorial.%player%} = 44:
+		execute console command "/title %player% subtitle {text:""船内を出ましょう"",color:""yellow""}"
+		execute console command "/title %player% times 0 120 40"
+		execute console command "/title %player% title {text:""外の空気を吸おう"",color:""light_purple""}"
+		message "<magenta>[akatsuki]<r> それでは， いってらっしゃい！"
+		message "<magenta>[tutorial] <grey><i>神殿風・屋根上に初心者マークの建物へ近づく。<r>"
+	add 1 to {tutorial.%player%}	# ▽テキストの早送り禁止機構
+	wait 0.2 second			# 　||
+	add 1 to {tutorial.%player%}	# △ここまで
+
+# 48～54
+on click:
+	player has permission "sakuraft.national"
+	{tutorial.%player%} is between 48 and 54
+	cancel the event
+	play raw sound "random.orb" at player with pitch 1.5 volume 10
+	if {tutorial.%player%} = 48:
+		message "<magenta>[akatsuki]<r> ここでは，仕事に就くことができるわ。<yellow>▼"
+	else if {tutorial.%player%} = 50:
+		message "<magenta>[akatsuki]<r> 仕事には，戦士や建築士，農家や錬金術師などの種類があって……<yellow>▼"
+	else if {tutorial.%player%} = 50:
+		message "<magenta>[akatsuki]<r> これらの仕事に就けば，あなたの行動に応じたお金が手に入るのよ。<yellow>▼"
+	else if {tutorial.%player%} = 52:
+		message "<magenta>[akatsuki]<r> それではさっそく，2つほど仕事に就いてみましょう。<yellow>▼"
+	else if {tutorial.%player%} = 54:
+		execute console command "/title %player% subtitle {text:""【￥就職￥】と書かれた看板を右クリックして就職する"",color:""yellow""}"
+		execute console command "/title %player% times 0 120 40"
+		execute console command "/title %player% title {text:""職に就こう"",color:""light_purple""}"
+		message "<magenta>[akatsuki]<r> 建物内の，【<blue>￥<purple>就職<blue>￥<r>】の看板を右クリックで，就職できるわ。<yellow>▼"
+		message "<magenta>[tutorial] <grey><i>【￥就職￥】と書かれた看板のうち2つを右クリックして就職。<r>"
+	add 1 to {tutorial.%player%}	# ▽テキストの早送り禁止機構
+	wait 0.2 second			# 　||
+	add 1 to {tutorial.%player%}	# △ここまで
+
+
+# 56 /jobs joinコマンド実行
+on command "/jobs join":
+	player has permission "sakuraft.national"
+	{tutorial.%player%} is 56
+	wait 0.2 second
+	add 1 to the player's level
+	play raw sound "random.levelup" at player with pitch 2 volume 10
+	message "<magenta>[akatsuki]<r> 1つめの仕事に就けたわね！ あと1つね。"
+	add 2 to {tutorial.%player%}
+
+# 58 /jobs joinコマンド実行
+on command "/jobs join":
+	player has permission "sakuraft.national"
+	{tutorial.%player%} is 58
+	wait 0.2 second
+	add 1 to the player's level
+	play raw sound "random.levelup" at player with pitch 2 volume 10
+	message "<magenta>[akatsuki]<r> 2つめの仕事に就けたわね！ これでニート卒業よ。<yellow>▼"
+	add 1 to {tutorial.%player%}	# ▽テキストの早送り禁止機構
+	wait 0.2 second			# 　||
+	add 1 to {tutorial.%player%}	# △ここまで
+
+
+# 60～66
+on click:
+	player has permission "sakuraft.national"
+	{tutorial.%player%} is between 60 and 66
+	cancel the event
+	play raw sound "random.orb" at player with pitch 1.5 volume 10
+	if {tutorial.%player%} = 60:
+		message "<magenta>[akatsuki]<r> 最後に買い物のしかたと鉄道の乗り方を教えるわ。<yellow>▼"
+	else if {tutorial.%player%} = 62:
+		message "<magenta>[akatsuki]<r> フェリーターミナルの地下に戻って，駅へ向かうのよ。<yellow>▼"
+	else if {tutorial.%player%} = 64:
+		message "<magenta>[akatsuki]<r> 近くまで来られたならば， また暁があなたに声をかけるわ。<yellow>▼"
+	else if {tutorial.%player%} = 66:
+		execute console command "/title %player% subtitle {text:""近くの看板案内に従いながら駅へ向かう"",color:""yellow""}"
+		execute console command "/title %player% times 0 120 40"
+		execute console command "/title %player% title {text:""鉄道駅へ向かおう"",color:""light_purple""}"
+		message "<magenta>[akatsuki]<r> それでは，いってらっしゃい！"
+		message "<magenta>[tutorial] <grey><i>近くの看板案内に従いながら，駅へ向かう。<r>"
+	add 1 to {tutorial.%player%}	# ▽テキストの早送り禁止機構
+	wait 0.2 second			# 　||
+	add 1 to {tutorial.%player%}	# △ここまで
+
+
+# 70～76
+on click:
+	player has permission "sakuraft.national"
+	{tutorial.%player%} is between 70 and 76
+	cancel the event
+	play raw sound "random.orb" at player with pitch 1.5 volume 10
+	if {tutorial.%player%} = 70:
+		message "<magenta>[akatsuki]<r> 近くに，看板があると思うわ。<yellow>▼"
+	else if {tutorial.%player%} = 72:
+		message "<magenta>[akatsuki]<r> 4行目に「Minecart」と書いてある看板を見つけるのよ。<yellow>▼"
+	else if {tutorial.%player%} = 74:
+		message "<magenta>[akatsuki]<r> その看板を右クリックすることで，きっぷ(トロッコ)が買えるの。<yellow>▼"
+	else if {tutorial.%player%} = 76:
+		execute console command "/title %player% subtitle {text:""「Minecart」の看板を右クリックする"",color:""yellow""}"
+		execute console command "/title %player% times 0 120 40"
+		execute console command "/title %player% title {text:""きっぷを買ってみよう"",color:""light_purple""}"
+		message "<magenta>[akatsuki]<r> 実際にきっぷ(トロッコ)を買ってみましょう！"
+		message "<magenta>[tutorial] <grey><i>「Minecart」と書かれた看板を右クリック。<r>"
+	add 1 to {tutorial.%player%}	# ▽テキストの早送り禁止機構
+	wait 0.2 second			# 　||
+	add 1 to {tutorial.%player%}	# △ここまで
+
+
+# 78
+on rightclick on a sign:
+	player has permission "sakuraft.national"
+	{tutorial.%player%} is 78
+	line 4 is "Minecart"
+	play raw sound "random.levelup" at player with pitch 2 volume 10
+	message "<magenta>[akatsuki]<r> これで，きっぷを買うことができたわ。<yellow>▼"
+	add 1 to {tutorial.%player%}	# ▽テキストの早送り禁止機構
+	wait 0.2 second			# 　||
+	add 1 to {tutorial.%player%}	# △ここまで
+
+
+# 80～100
+on click:
+	player has permission "sakuraft.national"
+	{tutorial.%player%} is between 80 and 100
+	cancel the event
+	play raw sound "random.orb" at player with pitch 1.5 volume 10
+	if {tutorial.%player%} = 80:
+		message "<magenta>[akatsuki]<r> この世界，いろんなところに売買用の看板があるわ。<yellow>▼"
+	if {tutorial.%player%} = 82:
+		execute console command "/tellraw @p ["""",{""text"":""[akatsuki]"",""color"":""light_purple""},{""text"":"" 看板を使って売買する方法は""},{""text"":""このページ"",""underlined"":true,""color"":""aqua"",""clickEvent"":{""action"":""open_url"",""value"":""https://sites.google.com/site/sakuraftrailwey/function/economy""}},{""text"":""をよく読んでおいてほしいわ。""}]"
+	if {tutorial.%player%} = 84:
+		message "<magenta>[akatsuki]<r> さて，そのきっぷ(トロッコ)を持って，地下ホームへ向かいましょう。<yellow>▼"
+	else if {tutorial.%player%} = 86:
+		message "<magenta>[akatsuki]<r> あとは，ところどころにある看板に案内があるから…<yellow>▼"
+	else if {tutorial.%player%} = 88:
+		message "<magenta>[akatsuki]<r> 看板通りに事を進めれば，列車に乗れるわ。<yellow>▼"
+	else if {tutorial.%player%} = 90:
+		execute console command "/title %player% subtitle {text:""報酬(スターターキット)が与えられます！"",color:""yellow""}"
+		execute console command "/title %player% times 0 120 40"
+		execute console command "/title %player% title {text:""初心者チュートリアル修了"",color:""light_purple""}"
+		message "<magenta>[akatsuki]<r> 初心者チュートリアルは修了しました！"
+	else if {tutorial.%player%} = 92:
+		message "<magenta>[akatsuki]<r> これであなたも立派な入植者になれたわね！<yellow>▼"
+	else if {tutorial.%player%} = 94:
+		message "<magenta>[akatsuki]<r> 最後に暁から，旅立つあなたにきっと役に立つ道具をさしあげるわ！<yellow>▼"
+	else if {tutorial.%player%} = 96:
+		message "<magenta>[akatsuki]<r> これからの開拓に必要なものよ！遠慮なく受け取りなさい。<yellow>▼"
+		give all diamond armors to the player	# 全ダイヤ装備
+		give all diamond tools to the player	# 全ダイヤ道具
+		give 64 breads to the player		# パン64個
+		give 64 coal to the player		# 石炭64個
+		give 32 oak wood to the player		# オークの原木32個
+		give a bed to the player		# ベッド
+		give a chest to the player		# チェスト
+		give 64 torches to the player		# たいまつ64本
+		give a bow to the player		# 弓
+		give 64 arrows to the player		# 矢64本
+	else if {tutorial.%player%} = 98:
+		message "<magenta>[akatsuki]<r> ある程度ゲームが進んだら，中級者チュートリアルがはじまるわ。<yellow>▼"
+	else if {tutorial.%player%} = 100:
+		message "<magenta>[akatsuki]<r> それでは，健闘を祈るわ！<yellow>▼"
+		message "<magenta>[tutorial] <grey><i>これで初心者チュートリアルは修了です。<r>"
+	add 1 to {tutorial.%player%}	# ▽テキストの早送り禁止機構
+	wait 0.2 second			# 　||
+	add 1 to {tutorial.%player%}	# △ここまで
+
+
+
+

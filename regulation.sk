@@ -1,0 +1,123 @@
+# ■条例スクリプト Ver 3.0
+#
+
+# 概要
+# ・国庫を一定額消費することで，マップ全体やプレイヤー全員に
+# 　特別な効果をもたらします。
+# ・所得の再分配機能や資源配分機能を実現します。
+
+
+
+# 生涯学習推進
+# 説明:開拓者が生涯にわたって学習活動を進める手助けを，行政が主体となって行う。
+# 効果:3ヶ月の間，15秒に1ずつ経験値が加算される。
+# 必要予算:200000₲
+
+# 資源産出推奨
+# 説明:行政が開拓者に鉱業や林業を推奨し，便宜を図る。
+# 効果:3ヶ月の間，ログインプレイヤー全員に採掘速度上昇ステータスを付与し続ける。1～5レベルの間で選べる。
+# 必要予算:500000₲ * (レベル) ^ 2
+
+# 減税
+# 説明:所得税率が大きく引き下げられるが，行政サービスの低下は避けられない…。
+# 効果:2ヶ月の間，所得税率は10％に引き下げられるが，移動速度低下2，採掘速度低下2，弱体化1の各種ステータスが付与されつづける。
+# 必要予算:0₲
+
+# 工廠運用
+# 説明:
+# 効果:
+# 必要予算:0₲
+
+# 条例
+# 説明:
+# 効果:
+# 必要予算:0₲
+
+# 条例
+# 説明:
+# 効果:
+# 必要予算:0₲
+
+# 条例
+# 説明:
+# 効果:
+# 必要予算:0₲
+
+# 条例
+# 説明:
+# 効果:
+# 必要予算:0₲
+
+
+# ■固定値
+options:
+	estfine: 10000				# 「雨雲の消散を陳情」に必要な予算(1人前)
+	estmorning: 10000			# 「早寝早起きを陳情」に必要な予算(1人前)
+
+
+# ■雨雲の消散を陳情
+# 　説明:雨雲が開発地域に到達する手前で，ヨウ化銀を撃ち込むことで強制降雨を促すことで，結果的に快晴をもたらす。
+# 　効果:即時に天候を晴天にする。
+# 　限定:降雨・雷雨時のみ
+# 　必要予算:10000ガバス * ログイン人数
+
+command /fine:
+	description: 予算を消費し，1回に限り開発地域の天候を晴れにします。
+	aliases: /f
+	trigger:
+		if weather in "world" is clear:
+			message "<yellow>[SRLB]<red> この陳情は，悪天候の時のみ受け付けます。"
+			stop
+		# ▼現在のログイン人数を数える
+		set {_loopnumber} to 0
+		loop all players:
+			add 1 to {_loopnumber}
+		# ▼予算計上
+		set {_b} to {@estfine}
+		set {_e} to {_b} * {_loopnumber}
+		# ▼予算が足りないときは中止
+		if {_e} > {Treasury}:
+			message "<yellow>[SRLB]<red> この陳情を実行するには，予算が足りないようです。%{_e}% %{Treasury}%"
+			stop
+		# ▼実行
+		set weather in "world" to clear
+		set {_s} to {Treasury} - {_e}
+		broadcast "<yellow>[SRLB]<lime><b> %player's tablist name%<r>さんの陳情によって，天候が晴れました。"
+		broadcast " <gray>●経費:%{_e}% ●国庫:%{Treasury}% → %{_s}%"
+
+
+# ■早寝早起きを陳情
+# 　説明:開拓民の早寝早起きを奨励し，充実した朝を迎える。
+# 　効果:即時に時刻を朝6時にする。副次的効果として，プレイヤーの体力・スタミナが5回復。
+# 　必要予算:10000ガバス * ログイン人数
+
+command /morning:
+	description: 予算を消費し，当日に限り開発地域の時刻を朝6時にします。
+	aliases: /m
+	trigger:
+		if time in "world" is between 5:30 and 17:30:
+			message "<yellow>[SRLB]<red> この陳情は，夕方から夜にかけてのみ受け付けています。"
+			stop
+		# ▼現在のログイン人数を数える
+		set {_loopnumber} to 0
+		loop all players:
+			add 1 to {_loopnumber}
+		# ▼予算計上
+		set {_b} to {@estmorning}
+		set {_e} to {_b} * {_loopnumber}
+		# ▼予算が足りないときは中止
+		if {_e} > {Treasury}:
+			message "<yellow>[SRLB]<red> この陳情を実行するには，予算が足りないようです。%{_e}% %{Treasury}%"
+			stop
+		# ▼実行
+		set time to 5:57
+		set {_s} to {Treasury} - {_e}
+		broadcast "<yellow>[SRLB]<lime><b> %player's tablist name%<r>さんの陳情によって，時刻が朝6時となりました。"
+		broadcast " <gray>●経費:%{_e}% ●国庫:%{Treasury}% → %{_s}%"
+
+
+
+
+
+
+
