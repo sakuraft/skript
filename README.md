@@ -1,0 +1,2 @@
+# skript
+Sakuraftサーバーで使用しているSkriptを管理します
