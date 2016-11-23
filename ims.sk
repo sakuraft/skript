@@ -10,7 +10,6 @@
 #　☆履歴
 #　　16/11/08: version 0.1.0
 #　　　・完成。在庫管理や登録など最低限の機能は備えた。
-#　☆履歴
 #　　16/11/08: version 0.1.1
 #　　　・在庫チェックについて，表示方法を「空だけ表示」「満タンだけ表示」「すべて表示」
 #　　　　「空と満タンだけ表示(デフォルト)」の4種類をご用意。
@@ -21,13 +20,18 @@
 #　　　・IMSの登録名変更方法を追加。
 #　　　　①/ims <任意の名称> (今まで通りの方法，直前に設定したチェストのみ有効)
 #　　　　②/ims name <ID> <任意の名称>
+#　　16/11/08: version 0.1.2
+#　　　・在庫チェックについて，表示方法に新たに「OP権限用全表示」をご用意。サバイバル以外のモードでコマンドを使うと発動。
+#　　　・IMSに登録されたチェストに名前がつくように変更。そのチェストを直接開けると，チェスト名が登録名になります。
+#　　　・IMSに登録されたチェストを遠隔で補充できるようにしました。
+#　　　　ただし自分とチェストの距離が1m離れるにつき1ガバス必要。
 
 
 command /imsdel:
 	trigger:
 		delete {ims.pos::*}
 		delete {ims.name::*}
-		delete {ims.owner::*}
+		delete {ims.owner::*}さ
 
 
 # 【コマンド】IMS関連。
@@ -36,8 +40,8 @@ command /ims <text=help>[ <text>[ <text>]]:
 		if arg-1 is "help":
 			message "<cyan>[ims]<r> 機能は以下の通りです。 (管)は管理者コマンド。"
 			message " <green>check<r>: 在庫確認。費用：0.2 Gavas/chest"
-#			message " <green>open<r>: 遠隔在庫補充。費用：超高い"
-			message " <green>(その他文字列)<r>: 直前に登録したチェストに名前をつける。費用：安い"
+			message " <green>open<r>: 遠隔在庫補充。費用：1 Gavas/meter"
+			message " <green>(その他文字列)<r>: 直前に登録したチェストに名前をつける。費用：50 Gavas/chest"
 			message "<cyan>[ims]<r> その他IMSにかかわる機能です。"
 			message " <light blue>チェストを登録する<r>: 名札を持ってチェストを右クリック。"
 			message " <light blue>登録解除<r>: 対象のチェストを破壊。"
@@ -64,14 +68,18 @@ command /ims <text=help>[ <text>[ <text>]]:
 			else if arg-2 is "all":
 				set {_flag} to "all"
 			message "<lime>[ims]<r> 在庫を確認します。"
+			# ▽サバイバルモード用ループ
 			loop integers from 0 to 2047:
+				player's gamemode is survival
 				{ims.owner::%loop-number%} is player
 				# ▽カネ不足チェック
 				if player's money < 0.2:
 					message "<lime>[ims]<red><b> エラー！ 在庫チェックの費用が足りません。"
-					stop
+					exit 1 loop
 				# ▽カネ徴収。
 				remove 0.2 from player's money
+				# ▽自分の所在地とそのチェストとの距離を調査。
+				set {_dist} to the distance between the player and {ims.pos::%loop-number%}
 				# ▽そのチェストが大きいか小さいかを調査。
 				set {_lc} to "小"
 				set {_loc} to {ims.pos::%loop-number%}
@@ -87,44 +95,119 @@ command /ims <text=help>[ <text>[ <text>]]:
 				if {_lc} is "小":
 					if block 0 north of {_loc} can hold 27 Minecarts:
 						{_flag} != "full"
-						message " <purple><b>空<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+						message " <purple><b>空<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
 					else if block 0 north of {_loc} can hold 24 Minecarts:
 						{_flag} != "full"
-						message " <blue><b>僅<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+						message " <blue><b>僅<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
 					else if block 0 north of {_loc} can hold 18 Minecarts:
 						{_flag} = "all"
-						message " <green><b>少<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+						message " <green><b>少<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
 					else if block 0 north of {_loc} can hold 9 Minecarts:
 						{_flag} = "all"
-						message " <yellow><b>中<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+						message " <yellow><b>中<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
 					else if block 0 north of {_loc} can hold 3 Minecarts:
 						{_flag} != "empty"
-						message " <orange><b>多<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+						message " <orange><b>多<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
 					else:
 						{_flag} != "empty"
-						message " <red><b>満<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+						message " <red><b>満<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
 				else:
 					if block 0 north of {_loc} can hold 54 Minecarts:
 						{_flag} != "full"
-						message " <purple><b>空<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+						message " <purple><b>空<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
 					else if block 0 north of {_loc} can hold 51 Minecarts:
 						{_flag} != "full"
-						message " <blue><b>僅<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+						message " <blue><b>僅<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
 					else if block 0 north of {_loc} can hold 36 Minecarts:
 						{_flag} = "all"
-						message " <green><b>少<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+						message " <green><b>少<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
 					else if block 0 north of {_loc} can hold 18 Minecarts:
 						{_flag} = "all"
-						message " <yellow><b>中<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+						message " <yellow><b>中<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
 					else if block 0 north of {_loc} can hold 3 Minecarts:
 						{_flag} != "empty"
-						message " <orange><b>多<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+						message " <orange><b>多<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
 					else:
 						{_flag} != "empty"
-						message " <red><b>満<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}%"
+						message " <red><b>満<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
+			# ▽非サバイバルモード用ループ
+			loop integers from 0 to 2047:
+				player's gamemode isn't survival
+				# ▽自分の所在地とそのチェストとの距離を調査。
+				set {_dist} to the distance between the player and {ims.pos::%loop-number%}
+				# ▽そのチェストが大きいか小さいかを調査。
+				set {_lc} to "小"
+				set {_loc} to {ims.pos::%loop-number%}
+				if block north of {_loc} is a chest:
+					set {_lc} to "大"
+				if block south of {_loc} is a chest:
+					set {_lc} to "大"
+				if block east of {_loc} is a chest:
+					set {_lc} to "大"
+				if block west of {_loc} is a chest:
+					set {_lc} to "大"
+				# ▽チェストの容量を調査(チェストのサイズで基準が違う)。
+				if {_lc} is "小":
+					if block 0 north of {_loc} can hold 27 Minecarts:
+						{_flag} != "full"
+						message " <purple><b>空<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
+					else if block 0 north of {_loc} can hold 24 Minecarts:
+						{_flag} != "full"
+						message " <blue><b>僅<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
+					else if block 0 north of {_loc} can hold 18 Minecarts:
+						{_flag} = "all"
+						message " <green><b>少<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
+					else if block 0 north of {_loc} can hold 9 Minecarts:
+						{_flag} = "all"
+						message " <yellow><b>中<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
+					else if block 0 north of {_loc} can hold 3 Minecarts:
+						{_flag} != "empty"
+						message " <orange><b>多<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
+					else:
+						{_flag} != "empty"
+						message " <red><b>満<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
+				else:
+					if block 0 north of {_loc} can hold 54 Minecarts:
+						{_flag} != "full"
+						message " <purple><b>空<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
+					else if block 0 north of {_loc} can hold 51 Minecarts:
+						{_flag} != "full"
+						message " <blue><b>僅<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
+					else if block 0 north of {_loc} can hold 36 Minecarts:
+						{_flag} = "all"
+						message " <green><b>少<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
+					else if block 0 north of {_loc} can hold 18 Minecarts:
+						{_flag} = "all"
+						message " <yellow><b>中<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
+					else if block 0 north of {_loc} can hold 3 Minecarts:
+						{_flag} != "empty"
+						message " <orange><b>多<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
+					else:
+						{_flag} != "empty"
+						message " <red><b>満<r> <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}% Size:%{_lc}% Dist:%{_dist}%m"
 			message "<lime>[ims]<r> 以上。"
-		else if arg-1 is "delete" or "cancel":		# ▼遠隔でIMSから登録を解除。
+			exit
+		else if arg-1 is "open" or "supply" or "restock" or "refill":		# ▼遠隔でIMS登録の在庫を補充。
 			set {_id} to arg-2 parsed as integer
+			# ▽エラーチェック。
+			if {_id} isn't set:
+				message "<lime>[ims]<red><b> エラー！ チェストIDの指定が間違っています。"
+				stop
+			if {ims.owner::%{_id}%} isn't player:
+				player doesn't have permission "sakraft.op"
+				message "<lime>[ims]<red><b> エラー！ そのチェストはあなたの登録ではありません。"
+				stop
+			set {_m} to the distance between the player and {ims.pos::%{_id}%}
+			if player's money < {_m}:
+				player doesn't have permission "sakraft.op"
+				message "<lime>[ims]<red><b> エラー！ 遠隔補充の費用が足りません。"
+				stop
+			# ▽カネ徴収。
+			remove {_m} from player's money
+			# ▽遠隔オープン。
+			open the block 0 meter north of {ims.pos::%{_id}%}'s inventory for the player
+			stop
+		else if arg-1 is "delete" or "cancel":		# ▼遠隔でIMSから登録を解除。
 			# ▽エラーチェック。
 			if {_id} isn't set:
 				message "<lime>[ims]<red><b> エラー！ チェストIDの指定が間違っています。"
@@ -177,6 +260,11 @@ command /ims <text=help>[ <text>[ <text>]]:
 			replace all "<add123>" with "%{add.lv1}%%{add.lv2}%%{add.lv3}%" in {ims.name::%{_id}%}
 			message "<lime>[ims]<r> システムに登録完了。"
 			message " <light gray>ID:%{_id}% Name:%{ims.name::%{_id}%}%"
+			# ▽チェスト名をチェストのNBTタグに書き込む。
+			set {_x} to the x-location of {_loc}
+			set {_y} to the y-location of {_loc}
+			set {_z} to the z-location of {_loc}
+			execute console command "/blockdata %{_x}% %{_y}% %{_z}% {CustomName:""§2[%{_id}%]§r%{ims.name::%{_id}%}%""}"
 			delete {ims.lastid::%player%}
 			stop
 		else:		# ▼直前に登録したチェストにラベル(名前)を設定。
@@ -211,6 +299,15 @@ command /ims <text=help>[ <text>[ <text>]]:
 			replace all "<add123>" with "%{add.lv1}%%{add.lv2}%%{add.lv3}%" in {ims.name::%{_id}%}
 			message "<lime>[ims]<r> システムに登録完了。"
 			message " <light gray>ID:%{_id}% Name:%{ims.name::%{_id}%}%"
+			# ▽チェスト名をチェストのNBTタグに書き込む。
+			set {_x} to the x-location of {_loc}
+			set {_y} to the y-location of {_loc}
+			set {_z} to the z-location of {_loc}
+			execute console command "/blockdata %{_x}% %{_y}% %{_z}% {CustomName:""§2[%{_id}%]§r%{ims.name::%{_id}%}%""}"
+			execute console command "/blockdata %{_x}+1% %{_y}% %{_z}% {CustomName:""§2[%{_id}%]§r%{ims.name::%{_id}%}%""}"
+			execute console command "/blockdata %{_x}-1% %{_y}% %{_z}% {CustomName:""§2[%{_id}%]§r%{ims.name::%{_id}%}%""}"
+			execute console command "/blockdata %{_x}% %{_y}% %{_z}+1% {CustomName:""§2[%{_id}%]§r%{ims.name::%{_id}%}%""}"
+			execute console command "/blockdata %{_x}% %{_y}% %{_z}-1% {CustomName:""§2[%{_id}%]§r%{ims.name::%{_id}%}%""}"
 			delete {ims.lastid::%player%}
 			stop
 
@@ -245,6 +342,8 @@ on rightclick on a chest with a name tag:
 			message "<lime>[ims]<red><b> エラー！ 登録が以下のチェストと重複しています。"
 			message " <light gray>ID:%loop-index% Name:%{ims.name::%loop-index%}% Owner:%{ims.owner::%loop-index%}%"
 			stop
+	# ▽名札のカスタムネームを記録
+	set {_custom} to tool of player's name
 	# ▽名札を1個消費
 	if player's gamemode is survival:
 		remove a name tag from the player
@@ -255,8 +354,28 @@ on rightclick on a chest with a name tag:
 			set {ims.pos::%loop-number%} to position of the block
 			set {ims.owner::%loop-number%} to "%player%"
 			set {ims.lastid::%player%} to loop-number
+			# ▽もし名札にカスタムネームがあった場合は，その名前をチェストの名前にしてしまう。
+			if {_custom} is set:
+				invoke "checkadd" from block 0 north of player
+				set {ims.name::%loop-number%} to {_custom}
+				# ▽特別なコマンドを仕込むと，その文字列が置換されて住所などを自動表示。
+				replace all "<add1>" with {add.lv1} in {ims.name::%loop-number%}
+				replace all "<add2>" with {add.lv2} in {ims.name::%loop-number%}
+				replace all "<add3>" with {add.lv3} in {ims.name::%loop-number%}
+				replace all "<add12>" with "%{add.lv1}%%{add.lv2}%" in {ims.name::%loop-number%}
+				replace all "<add23>" with "%{add.lv2}%%{add.lv3}%" in {ims.name::%loop-number%}
+				replace all "<add123>" with "%{add.lv1}%%{add.lv2}%%{add.lv3}%" in {ims.name::%loop-number%}
 			message "<lime>[ims]<r> システムに登録完了。"
 			message " <light gray>ID:%loop-number% Name:%{ims.name::%loop-number%}%"
+			# ▽チェスト名をチェストのNBTタグに書き込む。
+			set {_x} to the x-location of the block
+			set {_y} to the y-location of the block
+			set {_z} to the z-location of the block
+			execute console command "/blockdata %{_x}% %{_y}% %{_z}% {CustomName:""§2[%loop-number%]§r%{ims.name::%loop-number%}%""}"
+			execute console command "/blockdata %{_x}+1% %{_y}% %{_z}% {CustomName:""§2[%loop-number%]§r%{ims.name::%loop-number%}%""}"
+			execute console command "/blockdata %{_x}-1% %{_y}% %{_z}% {CustomName:""§2[%loop-number%]§r%{ims.name::%loop-number%}%""}"
+			execute console command "/blockdata %{_x}% %{_y}% %{_z}+1% {CustomName:""§2[%loop-number%]§r%{ims.name::%loop-number%}%""}"
+			execute console command "/blockdata %{_x}% %{_y}% %{_z}-1% {CustomName:""§2[%loop-number%]§r%{ims.name::%loop-number%}%""}"
 			stop
 	# ▽チェスト登録の上限を超えたらエラーを伝える。
 	message "<lime>[ims]<red><b> エラー！ チェスト登録数の限界を超えました。"
@@ -305,6 +424,8 @@ on leftclick on a chest with a name tag:
 			stop
 	# ▽クリックしたチェストがIMSに登録されていなかった場合のエラーメッセージ。
 	message "<lime>[ims]<red><b> エラー！ このチェストはIMSに登録されていません。"
+
+
 
 
 
