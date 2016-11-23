@@ -31,7 +31,7 @@ command /imsdel:
 	trigger:
 		delete {ims.pos::*}
 		delete {ims.name::*}
-		delete {ims.owner::*}さ
+		delete {ims.owner::*}
 
 
 # 【コマンド】IMS関連。
