@@ -133,6 +133,7 @@ command /ims <text=help>[ <text>[ <text>]]:
 			# ▽非サバイバルモード用ループ
 			loop integers from 0 to 2047:
 				player's gamemode isn't survival
+				{ims.pos::%loop-number%} is set
 				# ▽自分の所在地とそのチェストとの距離を調査。
 				set {_dist} to the distance between the player and {ims.pos::%loop-number%}
 				# ▽そのチェストが大きいか小さいかを調査。
